@@ -1,7 +1,7 @@
 import type { CMAClient } from '@contentful/app-sdk';
 import { createThrottler } from './throttle';
 import { paginateEntries, getEntryCount } from './paginate';
-import { flattenEntries, getColumnHeaders, type ContentType, type Entry } from './flatten';
+import { flattenEntries, flattenEntry, getColumnHeaders, type ContentType, type Entry } from './flatten';
 import { exportToCSV } from './csv';
 
 export interface ExportOptions {
@@ -11,6 +11,8 @@ export interface ExportOptions {
   fields?: string[]; // Optional field filter
   filters?: Record<string, unknown>;
   filename?: string;
+  userMap?: Record<string, string>; // Map of user IDs to names
+  contentTypeMap?: Record<string, ContentType>; // Map of content type IDs to schemas
 }
 
 export interface ExportProgress {
@@ -107,33 +109,68 @@ export class Exporter {
           return;
         }
 
-        // For cross-content-type exports, flatten without schema
+        // Flatten entries using schema-aware path for all entries
         let rows: Array<Record<string, string | number | boolean | null>>;
         if (options.contentType) {
+          // Single content type export - use the standard path
           rows = flattenEntries(batch as Entry[], {
             contentType: options.contentType,
             locales: options.locales,
             fields: options.fields,
+            userMap: options.userMap,
+          });
+        } else if (options.contentTypeMap) {
+          // Mixed content type export - look up each entry's content type
+          rows = (batch as Entry[]).map((entry) => {
+            const contentTypeId = entry.sys.contentType.sys.id;
+            const contentType = options.contentTypeMap![contentTypeId];
+            
+            if (contentType) {
+              // Use the schema-aware flatten for clean columns
+              return flattenEntry(entry, {
+                contentType,
+                locales: options.locales,
+                fields: options.fields,
+                userMap: options.userMap,
+              });
+            } else {
+              // Fallback for missing content type (rare) - still use clean column names
+              const updatedByUserId = entry.sys.updatedBy?.sys.id;
+              const updatedByName = updatedByUserId ? (options.userMap?.[updatedByUserId] || updatedByUserId) : 'Unknown';
+              
+              const row: Record<string, string | number | boolean | null> = {
+                'Entry ID': entry.sys.id,
+                'Created': new Date(entry.sys.createdAt).toISOString().split('T')[0],
+                'Updated': new Date(entry.sys.updatedAt).toISOString().split('T')[0],
+                'Last Updated By': updatedByName,
+                'Status': entry.sys.publishedVersion ? 'Published' : 'Draft',
+                'Content Type': contentTypeId,
+              };
+              
+              // Add all fields as JSON strings since we don't have the schema
+              if (entry.fields) {
+                for (const [fieldId, fieldValue] of Object.entries(entry.fields)) {
+                  row[fieldId] = JSON.stringify(fieldValue);
+                }
+              }
+              
+              return row;
+            }
           });
         } else {
-          // Flatten entries without schema for cross-content-type exports
+          // No content type map provided - shouldn't happen, but fallback
           rows = (batch as Entry[]).map((entry) => {
-            const row: Record<string, string | number | boolean | null> = {
-              'sys.id': entry.sys.id,
-              'sys.contentType': entry.sys.contentType.sys.id,
-              'sys.createdAt': entry.sys.createdAt,
-              'sys.updatedAt': entry.sys.updatedAt,
-              'sys.publishedVersion': entry.sys.publishedVersion ?? null,
+            const updatedByUserId = entry.sys.updatedBy?.sys.id;
+            const updatedByName = updatedByUserId ? (options.userMap?.[updatedByUserId] || updatedByUserId) : 'Unknown';
+            
+            return {
+              'Entry ID': entry.sys.id,
+              'Created': new Date(entry.sys.createdAt).toISOString().split('T')[0],
+              'Updated': new Date(entry.sys.updatedAt).toISOString().split('T')[0],
+              'Last Updated By': updatedByName,
+              'Status': entry.sys.publishedVersion ? 'Published' : 'Draft',
+              'Content Type': entry.sys.contentType.sys.id,
             };
-            
-            // Add all fields from all locales as JSON strings
-            if (entry.fields) {
-              for (const [fieldId, fieldValue] of Object.entries(entry.fields)) {
-                row[fieldId] = JSON.stringify(fieldValue);
-              }
-            }
-            
-            return row;
           });
         }
 

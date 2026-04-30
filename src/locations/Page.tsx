@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Heading, Paragraph, Stack } from '@contentful/f36-components';
+import { Heading, Paragraph, Stack, Box, Note, Spinner } from '@contentful/f36-components';
 import { useSDK, useCMA } from '@contentful/react-apps-toolkit';
 import type { PageAppSDK } from '@contentful/app-sdk';
 import { ExportForm, type ExportFormData } from '../components/ExportForm';
@@ -57,6 +57,7 @@ const Page = () => {
   const [lastSearchQuery, setLastSearchQuery] = useState<Record<string, unknown> | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [contentTypeMap, setContentTypeMap] = useState<Record<string, { name: string; displayField?: string }>>({});
+  const [contentTypeSchemaMap, setContentTypeSchemaMap] = useState<Record<string, ContentType>>({});
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   
   const exporterRef = useRef<Exporter | null>(null);
@@ -72,15 +73,19 @@ const Page = () => {
         const ctItems = ctResponse.items as unknown as ContentType[];
         setContentTypes(ctItems);
         
-        // Build content type map with names and display fields
+        // Build content type map with names and display fields (for UI)
         const ctMap: Record<string, { name: string; displayField?: string }> = {};
+        // Build content type schema map (for export)
+        const ctSchemaMap: Record<string, ContentType> = {};
         for (const ct of ctItems) {
           ctMap[ct.sys.id] = {
             name: ct.name || ct.sys.id,
             displayField: ct.displayField,
           };
+          ctSchemaMap[ct.sys.id] = ct;
         }
         setContentTypeMap(ctMap);
+        setContentTypeSchemaMap(ctSchemaMap);
 
         setLocales(
           localesResponse.items.map((l: { code: string; name: string }) => ({
@@ -196,6 +201,14 @@ const Page = () => {
 
       setSearchResults(response.items as unknown as SearchResult[]);
       setEstimatedCount(response.total);
+      
+      // Smooth scroll to results
+      setTimeout(() => {
+        const resultsElement = document.querySelector('[data-results-list]');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     } catch (error) {
       sdk.notifier.error('Failed to search entries');
       console.error(error);
@@ -242,6 +255,8 @@ const Page = () => {
           contentType: formData.contentType,
           contentTypeId: contentTypeId || 'selected',
           locales: formData.locales,
+          userMap: userMap,
+          contentTypeMap: contentTypeSchemaMap,
           filters: {
             'sys.id[in]': selectedIds.join(','),
           },
@@ -253,10 +268,11 @@ const Page = () => {
       );
 
       if (progress?.status === 'complete') {
-        sdk.notifier.success(`Exported ${selectedIds.length} selected entries!`);
+        sdk.notifier.success(`Successfully exported ${selectedIds.length} selected entries!`);
       }
     } catch (error) {
-      sdk.notifier.error('Failed to export selected entries');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      sdk.notifier.error(`Failed to export selected entries: ${message}`);
       console.error(error);
     } finally {
       setIsExporting(false);
@@ -321,7 +337,12 @@ const Page = () => {
           locales: data.locales,
           fields: data.fields,
           filters,
-          filename: `${data.contentTypeId || 'all'}-${new Date().toISOString().split('T')[0]}.csv`,
+          userMap: userMap,
+          contentTypeMap: contentTypeSchemaMap,
+          filename: data.customFilename ? `${data.customFilename}.csv` : 
+            (data.contentTypeId ? 
+              `${data.contentTypeId}-${new Date().toISOString().split('T')[0]}.csv` :
+              `contentful-export-${new Date().toISOString().split('T')[0]}.csv`),
         },
         (newProgress) => {
           setProgress(newProgress);
@@ -329,10 +350,11 @@ const Page = () => {
       );
 
       if (progress?.status === 'complete') {
-        sdk.notifier.success('Export completed successfully!');
+        sdk.notifier.success(`Export completed! Downloaded ${progress.fetched} entries.`);
       }
     } catch (error) {
-      sdk.notifier.error('Export failed');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      sdk.notifier.error(`Export failed: ${message}`);
       console.error(error);
     } finally {
       setIsExporting(false);
@@ -349,22 +371,30 @@ const Page = () => {
 
   if (loading) {
     return (
-      <Stack padding="spacingL">
-        <Paragraph>Loading...</Paragraph>
-      </Stack>
+      <Box style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+        <Stack padding="spacingL">
+          <Note variant="primary" title="Loading">
+            <Stack alignItems="center" spacing="spacingS">
+              <Spinner />
+              <Paragraph>Loading content types, locales, and tags...</Paragraph>
+            </Stack>
+          </Note>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <Stack flexDirection="column" spacing="spacingL" padding="spacingL">
-      <Heading>Bulk Entry CSV Exporter</Heading>
-      
-      <Paragraph>
-        Export entries from a content type to CSV. This tool bypasses the 40-entry
-        web UI limitation by paginating the Content Management API directly.
-      </Paragraph>
+    <Box style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+      <Stack flexDirection="column" spacing="spacingL" padding="spacingL">
+        <Heading>Bulk Entry CSV Exporter</Heading>
+        
+        <Paragraph>
+          Export entries from a content type to CSV. This tool bypasses the 40-entry
+          web UI limitation by paginating the Content Management API directly.
+        </Paragraph>
 
-      <ExportForm
+        <ExportForm
         contentTypes={contentTypes}
         availableLocales={locales}
         availableTags={tags}
@@ -377,21 +407,25 @@ const Page = () => {
         estimatedCount={estimatedCount}
       />
 
-      <ResultsList
-        results={searchResults}
-        loading={isSearching}
-        onLoadMore={handleLoadMore}
-        hasMore={estimatedCount ? searchResults.length < estimatedCount : false}
-        totalCount={estimatedCount ?? undefined}
-        selectedIds={selectedEntryIds}
-        onSelectionChange={setSelectedEntryIds}
-        onExportSelected={handleExportSelected}
-        contentTypeMap={contentTypeMap}
-        userMap={userMap}
-      />
+        <ResultsList
+          results={searchResults}
+          loading={isSearching}
+          onLoadMore={handleLoadMore}
+          hasMore={estimatedCount ? searchResults.length < estimatedCount : false}
+          totalCount={estimatedCount ?? undefined}
+          selectedIds={selectedEntryIds}
+          onSelectionChange={setSelectedEntryIds}
+          onExportSelected={handleExportSelected}
+          contentTypeMap={contentTypeMap}
+          userMap={userMap}
+          spaceId={sdk.ids.space}
+          environmentId={sdk.ids.environment}
+          isExporting={isExporting}
+        />
 
-      <ProgressPanel progress={progress} onCancel={handleCancel} />
-    </Stack>
+        <ProgressPanel progress={progress} onCancel={handleCancel} />
+      </Stack>
+    </Box>
   );
 };
 

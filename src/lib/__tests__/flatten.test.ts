@@ -25,6 +25,7 @@ describe('flatten', () => {
       updatedAt: '2024-01-02T00:00:00Z',
       publishedVersion: 5,
       contentType: { sys: { id: 'blogPost' } },
+      updatedBy: { sys: { id: 'user123' } },
     },
     fields: {
       title: {
@@ -73,11 +74,13 @@ describe('flatten', () => {
       const result = flattenEntry(mockEntry, {
         contentType: mockContentType,
         locales: ['en-US', 'de-DE'],
+        userMap: { 'user123': 'John Doe' },
       });
 
       expect(result['Entry ID']).toBe('entry123');
       expect(result['Created']).toBe('2024-01-01');
       expect(result['Updated']).toBe('2024-01-02');
+      expect(result['Last Updated By']).toBe('John Doe');
       expect(result['Status']).toBe('Published');
       expect(result['Content Type']).toBe('Blog Post');
       expect(result['Title (en-US)']).toBe('Hello World');
@@ -158,6 +161,7 @@ describe('flatten', () => {
         sys: {
           ...mockEntry.sys,
           publishedVersion: undefined,
+          updatedBy: undefined,
         },
       };
 
@@ -167,6 +171,7 @@ describe('flatten', () => {
       });
 
       expect(result['Status']).toBe('Draft');
+      expect(result['Last Updated By']).toBe('Unknown');
     });
   });
 
@@ -191,6 +196,7 @@ describe('flatten', () => {
       expect(headers).toContain('Entry ID');
       expect(headers).toContain('Created');
       expect(headers).toContain('Updated');
+      expect(headers).toContain('Last Updated By');
       expect(headers).toContain('Status');
       expect(headers).toContain('Content Type');
       expect(headers).toContain('Title (en-US)');

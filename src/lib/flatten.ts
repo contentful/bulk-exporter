@@ -9,6 +9,11 @@ export interface Entry {
         id: string;
       };
     };
+    updatedBy?: {
+      sys: {
+        id: string;
+      };
+    };
   };
   fields: Record<string, Record<string, unknown>>;
 }
@@ -38,6 +43,7 @@ export interface FlattenOptions {
   fields?: string[]; // Optional field filter
   resolveReferences?: boolean; // Whether to resolve entry/asset references to names
   includeContentTypeName?: boolean; // Whether to add content type name column
+  userMap?: Record<string, string>; // Map of user IDs to names
 }
 
 export interface FlatRow {
@@ -55,11 +61,16 @@ export function flattenEntry(
   entry: Entry,
   options: FlattenOptions
 ): FlatRow {
-  const { contentType, locales, fields, includeContentTypeName = true } = options;
+  const { contentType, locales, fields, includeContentTypeName = true, userMap = {} } = options;
+  
+  const updatedByUserId = entry.sys.updatedBy?.sys.id;
+  const updatedByName = updatedByUserId ? (userMap[updatedByUserId] || updatedByUserId) : 'Unknown';
+  
   const row: FlatRow = {
     'Entry ID': entry.sys.id,
     'Created': formatDate(entry.sys.createdAt),
     'Updated': formatDate(entry.sys.updatedAt),
+    'Last Updated By': updatedByName,
     'Status': entry.sys.publishedVersion ? 'Published' : 'Draft',
   };
 
@@ -225,6 +236,7 @@ export function getColumnHeaders(
     'Entry ID',
     'Created',
     'Updated',
+    'Last Updated By',
     'Status',
   ];
 

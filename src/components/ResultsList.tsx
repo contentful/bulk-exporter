@@ -1,4 +1,4 @@
-import { Table, Card, Stack, Text, Badge, Button, Spinner, Checkbox } from '@contentful/f36-components';
+import { Table, Card, Stack, Text, Badge, Button, Spinner, Checkbox, Tooltip } from '@contentful/f36-components';
 import { ExternalLinkIcon } from '@contentful/f36-icons';
 
 interface SearchResult {
@@ -55,6 +55,9 @@ export interface ResultsListProps {
   onExportSelected?: (selectedIds: string[]) => void;
   contentTypeMap?: ContentTypeMap;
   userMap?: UserMap;
+  spaceId?: string;
+  environmentId?: string;
+  isExporting?: boolean;
 }
 
 export function ResultsList({ 
@@ -68,6 +71,9 @@ export function ResultsList({
   onExportSelected,
   contentTypeMap = {},
   userMap = {},
+  spaceId = '',
+  environmentId = 'master',
+  isExporting = false,
 }: ResultsListProps) {
   if (loading && results.length === 0) {
     return (
@@ -176,7 +182,7 @@ export function ResultsList({
   };
 
   return (
-    <Card>
+    <Card data-results-list>
       <Stack flexDirection="column" spacing="spacingS">
         <Stack justifyContent="space-between" alignItems="center" padding="spacingM">
           <Stack spacing="spacingM" alignItems="center">
@@ -184,7 +190,24 @@ export function ResultsList({
               Search Results {totalCount !== undefined && `(${totalCount.toLocaleString()} total)`}
             </Text>
             {selectedIds.length > 0 && (
-              <Badge variant="primary">{selectedIds.length} selected</Badge>
+              <>
+                <Badge variant="primary">{selectedIds.length} selected</Badge>
+                {(() => {
+                  const contentTypeIds = new Set(
+                    results
+                      .filter(r => selectedIds.includes(r.sys.id))
+                      .map(r => r.sys.contentType.sys.id)
+                  );
+                  if (contentTypeIds.size > 1) {
+                    return (
+                      <Text fontSize="fontSizeS" fontColor="gray600">
+                        ({contentTypeIds.size} content types)
+                      </Text>
+                    );
+                  }
+                  return null;
+                })()}
+              </>
             )}
           </Stack>
           <Stack spacing="spacingS" alignItems="center">
@@ -198,6 +221,7 @@ export function ResultsList({
                 size="small"
                 variant="primary"
                 onClick={() => onExportSelected(selectedIds)}
+                isDisabled={isExporting}
               >
                 Export Selected ({selectedIds.length})
               </Button>
@@ -256,16 +280,18 @@ export function ResultsList({
                     <Text fontSize="fontSizeS">{status}</Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Button
-                      size="small"
-                      variant="transparent"
-                      endIcon={<ExternalLinkIcon />}
-                      as="a"
-                      href={`https://app.contentful.com/spaces/${entry.sys.id.split('-')[0]}/entries/${entry.sys.id}`}
-                      target="_blank"
-                    >
-                      View
-                    </Button>
+                    <Tooltip content="Open entry in Contentful" placement="top">
+                      <Button
+                        size="small"
+                        variant="transparent"
+                        endIcon={<ExternalLinkIcon />}
+                        as="a"
+                        href={`https://app.contentful.com/spaces/${spaceId}/environments/${environmentId}/entries/${entry.sys.id}`}
+                        target="_blank"
+                      >
+                        View
+                      </Button>
+                    </Tooltip>
                   </Table.Cell>
                 </Table.Row>
               );

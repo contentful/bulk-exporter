@@ -2,7 +2,9 @@
 
 A powerful Contentful App that allows you to export unlimited entries from any content type to CSV format, bypassing the 40-entry limitation of the Contentful web interface.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/bulk-entry-exporter)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/bulk-entry-exporter)
 
 ## Features
 
@@ -152,12 +154,13 @@ npm run build
 
 ## CSV Format
 
-The exported CSV uses clean, human-readable formatting:
+The exported CSV uses clean, human-readable formatting with **consistent columns** across all export methods (full export, "Any" content type search, or selected entries):
 
 ### Column Headers
 - **Entry ID**: Unique identifier for the entry
 - **Created**: Entry creation date (YYYY-MM-DD)
 - **Updated**: Last update date (YYYY-MM-DD)
+- **Last Updated By**: Full name of the user who last updated the entry
 - **Status**: "Draft" or "Published"
 - **Content Type**: Human-readable content type name
 - **Field columns**: Use field names from your content model (e.g., "Title (en-US)", "Author")
@@ -168,11 +171,19 @@ The exported CSV uses clean, human-readable formatting:
 - **Dates**: YYYY-MM-DD format
 - **Rich Text**: Plain text extraction when possible
 - **Objects**: JSON strings for complex data
+- **User Names**: Resolved to full names (e.g., "Miles Stauffer") instead of IDs
+
+### Export Methods
+
+All three export methods produce **identical column structures**:
+1. **Full Export** (Export to CSV button) - exports all matching entries
+2. **Any Content Type Export** - searches across all content types with consistent formatting
+3. **Selected Export** (Export Selected button) - exports only checked entries
 
 **Example CSV output:**
 ```csv
-Entry ID,Created,Updated,Status,Content Type,Title (en-US),Author,Tags
-abc123,2024-01-01,2024-01-02,Published,Blog Post,Hello World,author456,tech; blog; tips
+Entry ID,Created,Updated,Last Updated By,Status,Content Type,Title (en-US),Author,Tags
+abc123,2024-01-01,2024-01-02,Miles Stauffer,Published,Blog Post,Hello World,author456,tech; blog; tips
 ```
 
 ## Rate Limits

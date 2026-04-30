@@ -10,8 +10,12 @@ import {
   Stack,
   Radio,
   IconButton,
+  Flex,
+  Box,
+  Spinner,
+  Badge,
 } from '@contentful/f36-components';
-import { PlusIcon, DeleteIcon } from '@contentful/f36-icons';
+import { PlusIcon, DeleteIcon, FilterIcon } from '@contentful/f36-icons';
 import type { ContentType } from '../lib/flatten';
 import type { EntryStatus, FieldFilter } from '../lib/queryBuilder';
 
@@ -32,6 +36,7 @@ export interface ExportFormData {
   concepts?: string[];
   conceptsMatchAll?: boolean;
   fieldFilters?: FieldFilter[];
+  customFilename?: string;
 }
 
 export interface ExportFormProps {
@@ -76,11 +81,51 @@ export function ExportForm({
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([]);
   const [conceptsMatchAll, setConceptsMatchAll] = useState(false);
   const [fieldFilters, setFieldFilters] = useState<FieldFilter[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [customFilename, setCustomFilename] = useState('');
 
   const selectedContentType = useMemo(
     () => contentTypes.find(ct => ct.sys.id === contentTypeId) || null,
     [contentTypes, contentTypeId]
   );
+
+  const defaultFilename = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return `${contentTypeId || 'contentful-export'}-${today}`;
+  }, [contentTypeId]);
+
+  const activeFilters = useMemo(() => {
+    const filters: Array<{ label: string; onRemove: () => void }> = [];
+    
+    if (status !== 'any') {
+      filters.push({
+        label: `Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        onRemove: () => setStatus('any'),
+      });
+    }
+    
+    if (createdFrom || createdTo) {
+      filters.push({
+        label: `Created: ${createdFrom || '∞'} → ${createdTo || '∞'}`,
+        onRemove: () => {
+          setCreatedFrom('');
+          setCreatedTo('');
+        },
+      });
+    }
+    
+    if (updatedFrom || updatedTo) {
+      filters.push({
+        label: `Updated: ${updatedFrom || '∞'} → ${updatedTo || '∞'}`,
+        onRemove: () => {
+          setUpdatedFrom('');
+          setUpdatedTo('');
+        },
+      });
+    }
+    
+    return filters;
+  }, [status, createdFrom, createdTo, updatedFrom, updatedTo]);
 
   const formData: ExportFormData = {
     contentType: selectedContentType,
@@ -99,6 +144,7 @@ export function ExportForm({
     concepts: selectedConcepts,
     conceptsMatchAll,
     fieldFilters,
+    customFilename: customFilename || defaultFilename,
   };
 
   const handleEstimate = () => {
@@ -137,110 +183,156 @@ export function ExportForm({
         </Tabs.List>
 
         <Tabs.Panel id="filter">
-          <Stack flexDirection="column" spacing="spacingM" marginTop="spacingM">
-            <FormControl>
-              <FormControl.Label>Content Type</FormControl.Label>
-              <Select
-                value={contentTypeId}
-                onChange={(e) => setContentTypeId(e.target.value)}
-                isDisabled={isExporting}
-              >
-                <Select.Option value="">Any (search across all content types)</Select.Option>
-                {contentTypes.map((ct) => (
-                  <Select.Option key={ct.sys.id} value={ct.sys.id}>
-                    {ct.sys.id}
-                  </Select.Option>
-                ))}
-              </Select>
-              <FormControl.HelpText>
-                Select a specific content type or leave as "Any" to search across all entries
-              </FormControl.HelpText>
-            </FormControl>
-
-            <FormControl>
-              <FormControl.Label>Search</FormControl.Label>
-              <TextInput
-                placeholder="Full-text search across all fields"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                isDisabled={isExporting}
-              />
-              <FormControl.HelpText>
-                Searches across all text fields in the content type
-              </FormControl.HelpText>
-            </FormControl>
-
-            <FormControl>
-              <FormControl.Label>Status</FormControl.Label>
-              <Radio.Group
-                name="status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as EntryStatus)}
-              >
-                <Stack flexDirection="row" spacing="spacingS">
-                  <Radio value="any" isDisabled={isExporting}>Any</Radio>
-                  <Radio value="published" isDisabled={isExporting}>Published</Radio>
-                  <Radio value="draft" isDisabled={isExporting}>Draft</Radio>
-                  <Radio value="changed" isDisabled={isExporting}>Changed</Radio>
-                  <Radio value="archived" isDisabled={isExporting}>Archived</Radio>
-                </Stack>
-              </Radio.Group>
-            </FormControl>
-
-            <FormControl>
-              <FormControl.Label>Created Date Range</FormControl.Label>
-              <Stack flexDirection="row" spacing="spacingS">
-                <TextInput
-                  type="date"
-                  placeholder="From"
-                  value={createdFrom}
-                  onChange={(e) => setCreatedFrom(e.target.value)}
+          <Box marginTop="spacingM">
+            <Stack flexDirection="column" spacing="spacingM">
+              {/* Horizontal search bar - Contentful style */}
+              <Flex gap="spacingS" alignItems="flex-end">
+                <Box style={{ width: '200px' }}>
+                  <FormControl>
+                    <FormControl.Label>Content type</FormControl.Label>
+                    <Select
+                      value={contentTypeId}
+                      onChange={(e) => setContentTypeId(e.target.value)}
+                      isDisabled={isExporting}
+                    >
+                      <Select.Option value="">Any</Select.Option>
+                      {contentTypes.map((ct) => (
+                        <Select.Option key={ct.sys.id} value={ct.sys.id}>
+                          {ct.sys.id}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+                
+                <FormControl style={{ flexGrow: 1 }}>
+                  <FormControl.Label>Search</FormControl.Label>
+                  <TextInput
+                    placeholder="Type to search for entries"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    isDisabled={isExporting}
+                  />
+                </FormControl>
+                
+                <Button
+                  variant={showFilters ? 'primary' : 'secondary'}
+                  startIcon={<FilterIcon />}
+                  onClick={() => setShowFilters(!showFilters)}
                   isDisabled={isExporting}
-                />
-                <TextInput
-                  type="date"
-                  placeholder="To"
-                  value={createdTo}
-                  onChange={(e) => setCreatedTo(e.target.value)}
-                  isDisabled={isExporting}
-                />
-              </Stack>
-            </FormControl>
+                >
+                  Filter
+                  {activeFilters.length > 0 && ` (${activeFilters.length})`}
+                </Button>
+              </Flex>
 
-            <FormControl>
-              <FormControl.Label>Updated Date Range</FormControl.Label>
-              <Stack flexDirection="row" spacing="spacingS">
-                <TextInput
-                  type="date"
-                  placeholder="From"
-                  value={updatedFrom}
-                  onChange={(e) => setUpdatedFrom(e.target.value)}
-                  isDisabled={isExporting}
-                />
-                <TextInput
-                  type="date"
-                  placeholder="To"
-                  value={updatedTo}
-                  onChange={(e) => setUpdatedTo(e.target.value)}
-                  isDisabled={isExporting}
-                />
-              </Stack>
-            </FormControl>
+              {/* Active filter pills */}
+              {activeFilters.length > 0 && (
+                <Flex gap="spacingXs" flexWrap="wrap">
+                  {activeFilters.map((filter, index) => (
+                    <Badge
+                      key={index}
+                      variant="primary"
+                      style={{ cursor: 'pointer' }}
+                      onClick={filter.onRemove}
+                    >
+                      {filter.label} ×
+                    </Badge>
+                  ))}
+                </Flex>
+              )}
 
-            <FormControl>
-              <FormControl.Label>Sort By</FormControl.Label>
-              <Select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                isDisabled={isExporting}
-              >
-                <Select.Option value="sys.createdAt">Created (oldest first)</Select.Option>
-                <Select.Option value="-sys.createdAt">Created (newest first)</Select.Option>
-                <Select.Option value="sys.updatedAt">Updated (oldest first)</Select.Option>
-                <Select.Option value="-sys.updatedAt">Updated (newest first)</Select.Option>
-              </Select>
-            </FormControl>
-          </Stack>
+              {/* Collapsible filter panel */}
+              {showFilters && (
+                <Box
+                  padding="spacingM"
+                  style={{
+                    backgroundColor: 'var(--gray-100)',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Stack flexDirection="column" spacing="spacingM">
+                    <FormControl>
+                      <FormControl.Label>Status</FormControl.Label>
+                      <Radio.Group
+                        name="status"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as EntryStatus)}
+                      >
+                        <Stack flexDirection="row" spacing="spacingS" flexWrap="wrap">
+                          <Radio value="any" isDisabled={isExporting}>Any</Radio>
+                          <Radio value="published" isDisabled={isExporting}>Published</Radio>
+                          <Radio value="draft" isDisabled={isExporting}>Draft</Radio>
+                          <Radio value="changed" isDisabled={isExporting}>Changed</Radio>
+                          <Radio value="archived" isDisabled={isExporting}>Archived</Radio>
+                        </Stack>
+                      </Radio.Group>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormControl.Label>Sort By</FormControl.Label>
+                      <Select
+                        value={sort}
+                        onChange={(e) => setSort(e.target.value)}
+                        isDisabled={isExporting}
+                      >
+                        <Select.Option value="sys.createdAt">Created (oldest first)</Select.Option>
+                        <Select.Option value="-sys.createdAt">Created (newest first)</Select.Option>
+                        <Select.Option value="sys.updatedAt">Updated (oldest first)</Select.Option>
+                        <Select.Option value="-sys.updatedAt">Updated (newest first)</Select.Option>
+                      </Select>
+                    </FormControl>
+
+                    <Flex gap="spacingM" flexDirection="row">
+                      <Box style={{ flex: 1 }}>
+                        <FormControl>
+                          <FormControl.Label>Created Date Range</FormControl.Label>
+                          <Stack flexDirection="row" spacing="spacingS">
+                            <TextInput
+                              type="date"
+                              placeholder="From"
+                              value={createdFrom}
+                              onChange={(e) => setCreatedFrom(e.target.value)}
+                              isDisabled={isExporting}
+                            />
+                            <TextInput
+                              type="date"
+                              placeholder="To"
+                              value={createdTo}
+                              onChange={(e) => setCreatedTo(e.target.value)}
+                              isDisabled={isExporting}
+                            />
+                          </Stack>
+                        </FormControl>
+                      </Box>
+
+                      <Box style={{ flex: 1 }}>
+                        <FormControl>
+                          <FormControl.Label>Updated Date Range</FormControl.Label>
+                          <Stack flexDirection="row" spacing="spacingS">
+                            <TextInput
+                              type="date"
+                              placeholder="From"
+                              value={updatedFrom}
+                              onChange={(e) => setUpdatedFrom(e.target.value)}
+                              isDisabled={isExporting}
+                            />
+                            <TextInput
+                              type="date"
+                              placeholder="To"
+                              value={updatedTo}
+                              onChange={(e) => setUpdatedTo(e.target.value)}
+                              isDisabled={isExporting}
+                            />
+                          </Stack>
+                        </FormControl>
+                      </Box>
+                    </Flex>
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          </Box>
         </Tabs.Panel>
 
         {(availableTags.length > 0 || availableConcepts.length > 0) && (
@@ -316,181 +408,216 @@ export function ExportForm({
         )}
 
         <Tabs.Panel id="advanced">
-          <Stack flexDirection="column" spacing="spacingM" marginTop="spacingM">
-            <FormControl>
-              <FormControl.Label>Field-Level Filters</FormControl.Label>
-              <FormControl.HelpText>
-                Add custom filters on specific fields
-              </FormControl.HelpText>
-            </FormControl>
+          <Box marginTop="spacingM">
+            <Stack flexDirection="column" spacing="spacingS">
+              <FormControl marginBottom="spacingXs">
+                <FormControl.Label>Field-Level Filters</FormControl.Label>
+                <FormControl.HelpText>
+                  Add custom filters on specific fields
+                </FormControl.HelpText>
+              </FormControl>
 
-            {fieldFilters.map((filter, index) => (
-              <Stack key={index} flexDirection="row" spacing="spacingS" alignItems="flex-end">
-                <FormControl style={{ flex: 1 }}>
-                  <Select
-                    value={filter.fieldId}
-                    onChange={(e) => handleFieldFilterChange(index, 'fieldId', e.target.value)}
-                    isDisabled={isExporting || !selectedContentType}
-                  >
-                    <Select.Option value="">Select field</Select.Option>
-                    {selectedContentType?.fields.map((field) => (
-                      <Select.Option key={field.id} value={field.id}>
-                        {field.name || field.id}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </FormControl>
+              {fieldFilters.map((filter, index) => (
+                <Box
+                  key={index}
+                  padding="spacingS"
+                  style={{
+                    backgroundColor: 'var(--gray-100)',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Flex gap="spacingXs" alignItems="center">
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Select
+                        value={filter.fieldId}
+                        onChange={(e) => handleFieldFilterChange(index, 'fieldId', e.target.value)}
+                        isDisabled={isExporting || !selectedContentType}
+                        size="small"
+                      >
+                        <Select.Option value="">Select field</Select.Option>
+                        {selectedContentType?.fields.map((field) => (
+                          <Select.Option key={field.id} value={field.id}>
+                            {field.name || field.id}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Box>
 
-                <FormControl style={{ flex: 1 }}>
-                  <Select
-                    value={filter.operator}
-                    onChange={(e) => handleFieldFilterChange(index, 'operator', e.target.value)}
-                    isDisabled={isExporting}
-                  >
-                    <Select.Option value="equals">Equals</Select.Option>
-                    <Select.Option value="not_equals">Not equals</Select.Option>
-                    <Select.Option value="contains">Contains</Select.Option>
-                    <Select.Option value="gt">Greater than</Select.Option>
-                    <Select.Option value="gte">Greater than or equal</Select.Option>
-                    <Select.Option value="lt">Less than</Select.Option>
-                    <Select.Option value="lte">Less than or equal</Select.Option>
-                    <Select.Option value="exists">Exists</Select.Option>
-                    <Select.Option value="is_true">Is true</Select.Option>
-                    <Select.Option value="is_false">Is false</Select.Option>
-                    <Select.Option value="links_to">Links to entry ID</Select.Option>
-                  </Select>
-                </FormControl>
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Select
+                        value={filter.operator}
+                        onChange={(e) => handleFieldFilterChange(index, 'operator', e.target.value)}
+                        isDisabled={isExporting}
+                        size="small"
+                      >
+                        <Select.Option value="equals">Equals</Select.Option>
+                        <Select.Option value="not_equals">Not equals</Select.Option>
+                        <Select.Option value="contains">Contains</Select.Option>
+                        <Select.Option value="gt">Greater than</Select.Option>
+                        <Select.Option value="gte">Greater than or equal</Select.Option>
+                        <Select.Option value="lt">Less than</Select.Option>
+                        <Select.Option value="lte">Less than or equal</Select.Option>
+                        <Select.Option value="exists">Exists</Select.Option>
+                        <Select.Option value="is_true">Is true</Select.Option>
+                        <Select.Option value="is_false">Is false</Select.Option>
+                        <Select.Option value="links_to">Links to entry ID</Select.Option>
+                      </Select>
+                    </Box>
 
-                <FormControl style={{ flex: 1 }}>
-                  <TextInput
-                    value={filter.value}
-                    onChange={(e) => handleFieldFilterChange(index, 'value', e.target.value)}
-                    isDisabled={isExporting || filter.operator === 'is_true' || filter.operator === 'is_false'}
-                    placeholder="Value"
-                  />
-                </FormControl>
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <TextInput
+                        value={filter.value}
+                        onChange={(e) => handleFieldFilterChange(index, 'value', e.target.value)}
+                        isDisabled={isExporting || filter.operator === 'is_true' || filter.operator === 'is_false'}
+                        placeholder="Value"
+                        size="small"
+                      />
+                    </Box>
 
-                <IconButton
-                  variant="transparent"
-                  icon={<DeleteIcon />}
-                  aria-label="Remove filter"
-                  onClick={() => handleRemoveFieldFilter(index)}
-                  isDisabled={isExporting}
-                />
-              </Stack>
-            ))}
+                    <IconButton
+                      variant="transparent"
+                      icon={<DeleteIcon />}
+                      aria-label="Remove filter"
+                      onClick={() => handleRemoveFieldFilter(index)}
+                      isDisabled={isExporting}
+                      size="small"
+                    />
+                  </Flex>
+                </Box>
+              ))}
 
-            <Button
-              startIcon={<PlusIcon />}
-              variant="secondary"
-              size="small"
-              onClick={handleAddFieldFilter}
-              isDisabled={isExporting || !selectedContentType}
-            >
-              Add Field Filter
-            </Button>
-          </Stack>
+              <Box marginTop="spacingXs">
+                <Button
+                  startIcon={<PlusIcon />}
+                  variant="secondary"
+                  size="small"
+                  onClick={handleAddFieldFilter}
+                  isDisabled={isExporting || !selectedContentType}
+                >
+                  Add Field Filter
+                </Button>
+              </Box>
+            </Stack>
+          </Box>
         </Tabs.Panel>
 
         <Tabs.Panel id="output">
-          <Stack flexDirection="column" spacing="spacingM" marginTop="spacingM">
-            <FormControl>
-              <FormControl.Label>Locales</FormControl.Label>
-              <FormControl.HelpText>
-                Select which locales to include in the export
-              </FormControl.HelpText>
-              <Checkbox.Group
-                value={selectedLocales}
-                onChange={(e) => {
-                  const target = e.target as HTMLInputElement;
-                  const value = target.value;
-                  setSelectedLocales((prev) =>
-                    target.checked
-                      ? [...prev, value]
-                      : prev.filter((v) => v !== value)
-                  );
-                }}
-              >
-                {availableLocales.map((locale) => (
-                  <Checkbox
-                    key={locale.code}
-                    value={locale.code}
-                    isChecked={selectedLocales.includes(locale.code)}
-                    isDisabled={isExporting}
-                  >
-                    {locale.name} ({locale.code})
-                  </Checkbox>
-                ))}
-              </Checkbox.Group>
-            </FormControl>
-
-            {selectedContentType && (
-              <FormControl>
-                <FormControl.Label>Fields to Export</FormControl.Label>
-                <FormControl.HelpText>
-                  Leave empty to export all fields, or select specific fields
-                </FormControl.HelpText>
-                <Stack flexDirection="row" spacing="spacingS" marginBottom="spacingXs">
-                  <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() => {
-                      const allFieldIds = selectedContentType.fields.map(f => f.id);
-                      setSelectedFields(allFieldIds);
+          <Box marginTop="spacingM">
+            <Flex gap="spacingL" flexDirection="row" alignItems="flex-start">
+              <Box style={{ flex: 1 }}>
+                <FormControl>
+                  <FormControl.Label>Locales</FormControl.Label>
+                  <FormControl.HelpText>
+                    Select which locales to include
+                  </FormControl.HelpText>
+                  <Checkbox.Group
+                    value={selectedLocales}
+                    onChange={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      const value = target.value;
+                      setSelectedLocales((prev) =>
+                        target.checked
+                          ? [...prev, value]
+                          : prev.filter((v) => v !== value)
+                      );
                     }}
-                    isDisabled={isExporting}
                   >
-                    Select All
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() => setSelectedFields([])}
-                    isDisabled={isExporting}
-                  >
-                    Clear All
-                  </Button>
-                </Stack>
-                <Checkbox.Group
-                  value={selectedFields}
-                  onChange={(e) => {
-                    const target = e.target as HTMLInputElement;
-                    const value = target.value;
-                    setSelectedFields((prev) =>
-                      target.checked
-                        ? [...prev, value]
-                        : prev.filter((v) => v !== value)
-                    );
-                  }}
-                >
-                  {selectedContentType.fields.map((field) => (
-                    <Checkbox
-                      key={field.id}
-                      value={field.id}
-                      isChecked={selectedFields.includes(field.id)}
-                      isDisabled={isExporting}
-                    >
-                      {field.name} ({field.id})
-                    </Checkbox>
-                  ))}
-                </Checkbox.Group>
-              </FormControl>
-            )}
+                    {availableLocales.map((locale) => (
+                      <Checkbox
+                        key={locale.code}
+                        value={locale.code}
+                        isChecked={selectedLocales.includes(locale.code)}
+                        isDisabled={isExporting}
+                      >
+                        {locale.name} ({locale.code})
+                      </Checkbox>
+                    ))}
+                  </Checkbox.Group>
+                </FormControl>
+              </Box>
 
-            <FormControl>
-              <FormControl.Label>Filename Preview</FormControl.Label>
-              <TextInput
-                value={`${contentTypeId || 'content-type'}-${new Date().toISOString().split('T')[0]}.csv`}
-                isReadOnly
-                isDisabled
-              />
-            </FormControl>
-          </Stack>
+              <Box style={{ flex: 1 }}>
+                <Stack flexDirection="column" spacing="spacingM">
+                  {selectedContentType && (
+                    <FormControl>
+                      <FormControl.Label>Fields to Export</FormControl.Label>
+                      <FormControl.HelpText>
+                        Leave empty for all fields
+                      </FormControl.HelpText>
+                      <Stack flexDirection="row" spacing="spacingS" marginBottom="spacingXs">
+                        <Button
+                          size="small"
+                          variant="secondary"
+                          onClick={() => {
+                            const allFieldIds = selectedContentType.fields.map(f => f.id);
+                            setSelectedFields(allFieldIds);
+                          }}
+                          isDisabled={isExporting}
+                        >
+                          Select All
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="secondary"
+                          onClick={() => setSelectedFields([])}
+                          isDisabled={isExporting}
+                        >
+                          Clear All
+                        </Button>
+                      </Stack>
+                      <Box style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        <Checkbox.Group
+                          value={selectedFields}
+                          onChange={(e) => {
+                            const target = e.target as HTMLInputElement;
+                            const value = target.value;
+                            setSelectedFields((prev) =>
+                              target.checked
+                                ? [...prev, value]
+                                : prev.filter((v) => v !== value)
+                            );
+                          }}
+                        >
+                          {selectedContentType.fields.map((field) => (
+                            <Checkbox
+                              key={field.id}
+                              value={field.id}
+                              isChecked={selectedFields.includes(field.id)}
+                              isDisabled={isExporting}
+                            >
+                              {field.name} ({field.id})
+                            </Checkbox>
+                          ))}
+                        </Checkbox.Group>
+                      </Box>
+                    </FormControl>
+                  )}
+
+                  <FormControl>
+                    <FormControl.Label>Export Filename</FormControl.Label>
+                    <Flex gap="spacingXs" alignItems="flex-end">
+                      <TextInput
+                        value={customFilename || defaultFilename}
+                        onChange={(e) => setCustomFilename(e.target.value)}
+                        placeholder={defaultFilename}
+                        isDisabled={isExporting}
+                        style={{ flexGrow: 1 }}
+                      />
+                      <Box style={{ flexShrink: 0, paddingBottom: '2px' }}>.csv</Box>
+                    </Flex>
+                    <FormControl.HelpText>
+                      Customize the filename for your export
+                    </FormControl.HelpText>
+                  </FormControl>
+                </Stack>
+              </Box>
+            </Flex>
+          </Box>
         </Tabs.Panel>
       </Tabs>
 
       <Stack flexDirection="column" spacing="spacingM" marginTop="spacingL">
-        <Stack flexDirection="row" spacing="spacingS">
+        <Stack flexDirection="row" spacing="spacingS" alignItems="center">
           <Button
             type="button"
             variant="secondary"
@@ -514,9 +641,16 @@ export function ExportForm({
             type="submit"
             variant="primary"
             isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
+            isLoading={isExporting}
           >
             Export to CSV
           </Button>
+          
+          {(isSearching || isExporting) && (
+            <Stack alignItems="center" spacing="spacingXs" flexDirection="row">
+              <Spinner size="small" />
+            </Stack>
+          )}
         </Stack>
 
         {estimatedCount !== null && (
