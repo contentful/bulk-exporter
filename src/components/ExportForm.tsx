@@ -14,8 +14,9 @@ import {
   Box,
   Spinner,
   Badge,
+  Tooltip,
 } from '@contentful/f36-components';
-import { PlusIcon, DeleteIcon, FilterIcon } from '@contentful/f36-icons';
+import { PlusIcon, DeleteIcon, FilterIcon, InfoCircleIcon } from '@contentful/f36-icons';
 import type { ContentType } from '../lib/flatten';
 import type { EntryStatus, FieldFilter } from '../lib/queryBuilder';
 
@@ -186,10 +187,9 @@ export function ExportForm({
           <Box marginTop="spacingM">
             <Stack flexDirection="column" spacing="spacingM">
               {/* Horizontal search bar - Contentful style */}
-              <Flex gap="spacingS" alignItems="flex-end">
-                <Box style={{ width: '200px' }}>
-                  <FormControl>
-                    <FormControl.Label>Content type</FormControl.Label>
+              <Flex gap="spacingS" alignItems="center">
+                <Tooltip content="Select a specific content type to export, or choose 'Any' to search across all content types" placement="top">
+                  <Box style={{ width: '200px' }}>
                     <Select
                       value={contentTypeId}
                       onChange={(e) => setContentTypeId(e.target.value)}
@@ -202,42 +202,46 @@ export function ExportForm({
                         </Select.Option>
                       ))}
                     </Select>
-                  </FormControl>
-                </Box>
+                  </Box>
+                </Tooltip>
                 
-                <FormControl style={{ flexGrow: 1 }}>
-                  <FormControl.Label>Search</FormControl.Label>
-                  <TextInput
-                    placeholder="Type to search for entries"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                <Tooltip content="Full-text search across all entry fields. Leave empty to export all entries matching other filters" placement="top">
+                  <Box style={{ flexGrow: 1 }}>
+                    <TextInput
+                      placeholder="Type to search for entries"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      isDisabled={isExporting}
+                    />
+                  </Box>
+                </Tooltip>
+                
+                <Tooltip content="Show advanced filters for status, dates, and sorting options" placement="top">
+                  <Button
+                    variant={showFilters ? 'primary' : 'secondary'}
+                    startIcon={<FilterIcon />}
+                    onClick={() => setShowFilters(!showFilters)}
                     isDisabled={isExporting}
-                  />
-                </FormControl>
-                
-                <Button
-                  variant={showFilters ? 'primary' : 'secondary'}
-                  startIcon={<FilterIcon />}
-                  onClick={() => setShowFilters(!showFilters)}
-                  isDisabled={isExporting}
-                >
-                  Filter
-                  {activeFilters.length > 0 && ` (${activeFilters.length})`}
-                </Button>
+                  >
+                    Filter
+                    {activeFilters.length > 0 && ` (${activeFilters.length})`}
+                  </Button>
+                </Tooltip>
               </Flex>
 
               {/* Active filter pills */}
               {activeFilters.length > 0 && (
                 <Flex gap="spacingXs" flexWrap="wrap">
                   {activeFilters.map((filter, index) => (
-                    <Badge
-                      key={index}
-                      variant="primary"
-                      style={{ cursor: 'pointer' }}
-                      onClick={filter.onRemove}
-                    >
-                      {filter.label} ×
-                    </Badge>
+                    <Tooltip key={index} content="Click to remove this filter" placement="top">
+                      <Badge
+                        variant="primary"
+                        style={{ cursor: 'pointer' }}
+                        onClick={filter.onRemove}
+                      >
+                        {filter.label} ×
+                      </Badge>
+                    </Tooltip>
                   ))}
                 </Flex>
               )}
@@ -253,7 +257,18 @@ export function ExportForm({
                 >
                   <Stack flexDirection="column" spacing="spacingM">
                     <FormControl>
-                      <FormControl.Label>Status</FormControl.Label>
+                      <Flex alignItems="center" gap="spacingXs">
+                        <FormControl.Label>Status</FormControl.Label>
+                        <Tooltip content="Filter entries by publication status" placement="right">
+                          <IconButton
+                            variant="transparent"
+                            icon={<InfoCircleIcon />}
+                            aria-label="Help"
+                            size="small"
+                            style={{ padding: 0, minHeight: 'auto' }}
+                          />
+                        </Tooltip>
+                      </Flex>
                       <Radio.Group
                         name="status"
                         value={status}
@@ -270,7 +285,18 @@ export function ExportForm({
                     </FormControl>
 
                     <FormControl>
-                      <FormControl.Label>Sort By</FormControl.Label>
+                      <Flex alignItems="center" gap="spacingXs">
+                        <FormControl.Label>Sort By</FormControl.Label>
+                        <Tooltip content="Choose the order for your export. Sorting by creation date is most efficient for large exports" placement="right">
+                          <IconButton
+                            variant="transparent"
+                            icon={<InfoCircleIcon />}
+                            aria-label="Help"
+                            size="small"
+                            style={{ padding: 0, minHeight: 'auto' }}
+                          />
+                        </Tooltip>
+                      </Flex>
                       <Select
                         value={sort}
                         onChange={(e) => setSort(e.target.value)}
@@ -286,7 +312,18 @@ export function ExportForm({
                     <Flex gap="spacingM" flexDirection="row">
                       <Box style={{ flex: 1 }}>
                         <FormControl>
-                          <FormControl.Label>Created Date Range</FormControl.Label>
+                          <Flex alignItems="center" gap="spacingXs">
+                            <FormControl.Label>Created Date Range</FormControl.Label>
+                            <Tooltip content="Filter entries created within a specific date range" placement="right">
+                              <IconButton
+                                variant="transparent"
+                                icon={<InfoCircleIcon />}
+                                aria-label="Help"
+                                size="small"
+                                style={{ padding: 0, minHeight: 'auto' }}
+                              />
+                            </Tooltip>
+                          </Flex>
                           <Stack flexDirection="row" spacing="spacingS">
                             <TextInput
                               type="date"
@@ -308,7 +345,18 @@ export function ExportForm({
 
                       <Box style={{ flex: 1 }}>
                         <FormControl>
-                          <FormControl.Label>Updated Date Range</FormControl.Label>
+                          <Flex alignItems="center" gap="spacingXs">
+                            <FormControl.Label>Updated Date Range</FormControl.Label>
+                            <Tooltip content="Filter entries last updated within a specific date range" placement="right">
+                              <IconButton
+                                variant="transparent"
+                                icon={<InfoCircleIcon />}
+                                aria-label="Help"
+                                size="small"
+                                style={{ padding: 0, minHeight: 'auto' }}
+                              />
+                            </Tooltip>
+                          </Flex>
                           <Stack flexDirection="row" spacing="spacingS">
                             <TextInput
                               type="date"
@@ -340,7 +388,18 @@ export function ExportForm({
             <Stack flexDirection="column" spacing="spacingM" marginTop="spacingM">
               {availableTags.length > 0 && (
                 <FormControl>
-                  <FormControl.Label>Tags</FormControl.Label>
+                  <Flex alignItems="center" gap="spacingXs">
+                    <FormControl.Label>Tags</FormControl.Label>
+                    <Tooltip content="Filter entries that have any or all of the selected tags" placement="right">
+                      <IconButton
+                        variant="transparent"
+                        icon={<InfoCircleIcon />}
+                        aria-label="Help"
+                        size="small"
+                        style={{ padding: 0, minHeight: 'auto' }}
+                      />
+                    </Tooltip>
+                  </Flex>
                   {availableTags.map((tag) => (
                     <Checkbox
                       key={tag.sys.id}
@@ -360,20 +419,33 @@ export function ExportForm({
                     </Checkbox>
                   ))}
                   {selectedTags.length > 0 && (
-                    <Checkbox
-                      isChecked={tagsMatchAll}
-                      onChange={(e) => setTagsMatchAll(e.target.checked)}
-                      isDisabled={isExporting}
-                    >
-                      Match all selected tags (AND)
-                    </Checkbox>
+                    <Tooltip content="When checked, only entries with ALL selected tags will be included (AND logic)" placement="right">
+                      <Checkbox
+                        isChecked={tagsMatchAll}
+                        onChange={(e) => setTagsMatchAll(e.target.checked)}
+                        isDisabled={isExporting}
+                      >
+                        Match all selected tags (AND)
+                      </Checkbox>
+                    </Tooltip>
                   )}
                 </FormControl>
               )}
 
               {availableConcepts.length > 0 && (
                 <FormControl>
-                  <FormControl.Label>Taxonomy Concepts</FormControl.Label>
+                  <Flex alignItems="center" gap="spacingXs">
+                    <FormControl.Label>Taxonomy Concepts</FormControl.Label>
+                    <Tooltip content="Filter entries linked to taxonomy concepts from your content model" placement="right">
+                      <IconButton
+                        variant="transparent"
+                        icon={<InfoCircleIcon />}
+                        aria-label="Help"
+                        size="small"
+                        style={{ padding: 0, minHeight: 'auto' }}
+                      />
+                    </Tooltip>
+                  </Flex>
                   {availableConcepts.map((concept) => (
                     <Checkbox
                       key={concept.sys.id}
@@ -393,13 +465,15 @@ export function ExportForm({
                     </Checkbox>
                   ))}
                   {selectedConcepts.length > 0 && (
-                    <Checkbox
-                      isChecked={conceptsMatchAll}
-                      onChange={(e) => setConceptsMatchAll(e.target.checked)}
-                      isDisabled={isExporting}
-                    >
-                      Match all selected concepts (AND)
-                    </Checkbox>
+                    <Tooltip content="When checked, only entries with ALL selected concepts will be included (AND logic)" placement="right">
+                      <Checkbox
+                        isChecked={conceptsMatchAll}
+                        onChange={(e) => setConceptsMatchAll(e.target.checked)}
+                        isDisabled={isExporting}
+                      >
+                        Match all selected concepts (AND)
+                      </Checkbox>
+                    </Tooltip>
                   )}
                 </FormControl>
               )}
@@ -411,7 +485,18 @@ export function ExportForm({
           <Box marginTop="spacingM">
             <Stack flexDirection="column" spacing="spacingS">
               <FormControl marginBottom="spacingXs">
-                <FormControl.Label>Field-Level Filters</FormControl.Label>
+                <Flex alignItems="center" gap="spacingXs">
+                  <FormControl.Label>Field-Level Filters</FormControl.Label>
+                  <Tooltip content="Create custom filters on specific fields. Useful for precise data exports (e.g., 'price greater than 100')" placement="right">
+                    <IconButton
+                      variant="transparent"
+                      icon={<InfoCircleIcon />}
+                      aria-label="Help"
+                      size="small"
+                      style={{ padding: 0, minHeight: 'auto' }}
+                    />
+                  </Tooltip>
+                </Flex>
                 <FormControl.HelpText>
                   Add custom filters on specific fields
                 </FormControl.HelpText>
@@ -487,15 +572,17 @@ export function ExportForm({
               ))}
 
               <Box marginTop="spacingXs">
-                <Button
-                  startIcon={<PlusIcon />}
-                  variant="secondary"
-                  size="small"
-                  onClick={handleAddFieldFilter}
-                  isDisabled={isExporting || !selectedContentType}
-                >
-                  Add Field Filter
-                </Button>
+                <Tooltip content="Add a new field filter. You must select a content type first to see available fields" placement="right">
+                  <Button
+                    startIcon={<PlusIcon />}
+                    variant="secondary"
+                    size="small"
+                    onClick={handleAddFieldFilter}
+                    isDisabled={isExporting || !selectedContentType}
+                  >
+                    Add Field Filter
+                  </Button>
+                </Tooltip>
               </Box>
             </Stack>
           </Box>
@@ -506,7 +593,18 @@ export function ExportForm({
             <Flex gap="spacingL" flexDirection="row" alignItems="flex-start">
               <Box style={{ flex: 1 }}>
                 <FormControl>
-                  <FormControl.Label>Locales</FormControl.Label>
+                  <Flex alignItems="center" gap="spacingXs">
+                    <FormControl.Label>Locales</FormControl.Label>
+                    <Tooltip content="Select which language versions to include in your export. Each locale will create separate columns in the CSV" placement="right">
+                      <IconButton
+                        variant="transparent"
+                        icon={<InfoCircleIcon />}
+                        aria-label="Help"
+                        size="small"
+                        style={{ padding: 0, minHeight: 'auto' }}
+                      />
+                    </Tooltip>
+                  </Flex>
                   <FormControl.HelpText>
                     Select which locales to include
                   </FormControl.HelpText>
@@ -540,30 +638,45 @@ export function ExportForm({
                 <Stack flexDirection="column" spacing="spacingM">
                   {selectedContentType && (
                     <FormControl>
-                      <FormControl.Label>Fields to Export</FormControl.Label>
+                      <Flex alignItems="center" gap="spacingXs">
+                        <FormControl.Label>Fields to Export</FormControl.Label>
+                        <Tooltip content="Choose specific fields to export, or leave empty to include all fields. Selecting fewer fields creates smaller, more focused CSVs" placement="right">
+                          <IconButton
+                            variant="transparent"
+                            icon={<InfoCircleIcon />}
+                            aria-label="Help"
+                            size="small"
+                            style={{ padding: 0, minHeight: 'auto' }}
+                          />
+                        </Tooltip>
+                      </Flex>
                       <FormControl.HelpText>
                         Leave empty for all fields
                       </FormControl.HelpText>
                       <Stack flexDirection="row" spacing="spacingS" marginBottom="spacingXs">
-                        <Button
-                          size="small"
-                          variant="secondary"
-                          onClick={() => {
-                            const allFieldIds = selectedContentType.fields.map(f => f.id);
-                            setSelectedFields(allFieldIds);
-                          }}
-                          isDisabled={isExporting}
-                        >
-                          Select All
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="secondary"
-                          onClick={() => setSelectedFields([])}
-                          isDisabled={isExporting}
-                        >
-                          Clear All
-                        </Button>
+                        <Tooltip content="Include all fields from this content type" placement="top">
+                          <Button
+                            size="small"
+                            variant="secondary"
+                            onClick={() => {
+                              const allFieldIds = selectedContentType.fields.map(f => f.id);
+                              setSelectedFields(allFieldIds);
+                            }}
+                            isDisabled={isExporting}
+                          >
+                            Select All
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="Deselect all fields (export will include only system fields)" placement="top">
+                          <Button
+                            size="small"
+                            variant="secondary"
+                            onClick={() => setSelectedFields([])}
+                            isDisabled={isExporting}
+                          >
+                            Clear All
+                          </Button>
+                        </Tooltip>
                       </Stack>
                       <Box style={{ maxHeight: '300px', overflowY: 'auto' }}>
                         <Checkbox.Group
@@ -594,7 +707,18 @@ export function ExportForm({
                   )}
 
                   <FormControl>
-                    <FormControl.Label>Export Filename</FormControl.Label>
+                    <Flex alignItems="center" gap="spacingXs">
+                      <FormControl.Label>Export Filename</FormControl.Label>
+                      <Tooltip content="Customize the filename for your CSV download. The .csv extension is added automatically" placement="right">
+                        <IconButton
+                          variant="transparent"
+                          icon={<InfoCircleIcon />}
+                          aria-label="Help"
+                          size="small"
+                          style={{ padding: 0, minHeight: 'auto' }}
+                        />
+                      </Tooltip>
+                    </Flex>
                     <Flex gap="spacingXs" alignItems="flex-end">
                       <TextInput
                         value={customFilename || defaultFilename}
@@ -618,33 +742,39 @@ export function ExportForm({
 
       <Stack flexDirection="column" spacing="spacingM" marginTop="spacingL">
         <Stack flexDirection="row" spacing="spacingS" alignItems="center">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => onSearch(formData)}
-            isDisabled={isExporting || isSearching}
-            isLoading={isSearching}
-          >
-            Search & Preview
-          </Button>
+          <Tooltip content="View a preview of matching entries before exporting. Useful for verifying your filters" placement="top">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => onSearch(formData)}
+              isDisabled={isExporting || isSearching}
+              isLoading={isSearching}
+            >
+              Search & Preview
+            </Button>
+          </Tooltip>
 
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleEstimate}
-            isDisabled={isExporting || isSearching}
-          >
-            Estimate Count
-          </Button>
+          <Tooltip content="Get a quick count of how many entries match your filters without loading full previews" placement="top">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleEstimate}
+              isDisabled={isExporting || isSearching}
+            >
+              Estimate Count
+            </Button>
+          </Tooltip>
 
-          <Button
-            type="submit"
-            variant="primary"
-            isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
-            isLoading={isExporting}
-          >
-            Export to CSV
-          </Button>
+          <Tooltip content="Download all matching entries as a CSV file. Large exports may take several minutes" placement="top">
+            <Button
+              type="submit"
+              variant="primary"
+              isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
+              isLoading={isExporting}
+            >
+              Export to CSV
+            </Button>
+          </Tooltip>
           
           {(isSearching || isExporting) && (
             <Stack alignItems="center" spacing="spacingXs" flexDirection="row">
