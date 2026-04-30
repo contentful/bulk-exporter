@@ -1,23 +1,34 @@
 # Bulk Entry CSV Exporter for Contentful
 
-A powerful Contentful App that allows you to export unlimited entries from any content type to CSV format, bypassing the 40-entry limitation of the Contentful web interface.
+A powerful Contentful App that allows you to export unlimited entries from any content type to **5 different formats** (CSV, JSON, XLSX, XML, YAML), bypassing the 40-entry limitation of the Contentful web interface.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
 
+## Quick Export
+
+![Quick Export Menu](./screenshots/quick-export-menu.png)
+
+Click the **Export** dropdown to instantly export in your preferred format with smart defaults, or use the **Output tab** for advanced customization (locales, fields, filename).
+
 ## Features
 
+### Export Formats
+- **5 Export Formats**: CSV, JSON, XLSX (Excel), XML, YAML
+- **Quick Export Dropdown**: One-click export with smart defaults (all locales, all fields)
+- **Advanced Export**: Full control via Output tab (custom locales, fields, filename)
+- **Format-Specific Optimizations**: UTF-8 BOM for CSV/Excel, pretty-printed JSON, compressed XLSX
+
+### Search & Filtering
 - **Contentful-Style Results Table**: Search results display matches Contentful's native interface with:
   - Entry name (using the content type's display field)
   - Content type name (human-readable, not ID)
   - Updated date (YYYY-MM-DD format)
   - Last updated by (user's full name)
   - Status (draft/changed/published)
-- **Search & Preview**: View search results before exporting with full-text search and advanced filters
-- **Select Entries**: Check individual entries or select all, then export only your selection
-- **Choose Columns**: Select specific fields to include in the export, reducing file size and focusing on relevant data
 - **Global Search**: Search across all content types or filter by specific content type
+- **Select Entries**: Check individual entries or select all, then export only your selection
 - **Rich Filtering**:
   - Full-text search across all fields
   - Status filters (published, draft, changed, archived)
@@ -25,12 +36,15 @@ A powerful Contentful App that allows you to export unlimited entries from any c
   - Tag filters (any or all tags)
   - Taxonomy concept filters (any or all concepts)
   - Advanced field-level filters with multiple operators
-- **Unlimited Export**: Export any number of entries from any content type
+
+### Export Capabilities
+- **Unlimited Entries**: Export any number of entries from any content type
+- **Choose Columns**: Select specific fields to include, reducing file size
 - **Locale Selection**: Export all locales or select specific ones
-- **Clean CSV Output**: Human-readable column headers and formatted data
+- **Clean Output**: Human-readable column headers and formatted data
 - **Rate-Limit Aware**: Automatic throttling (8 req/s for paid tier) and retry logic
 - **Real-Time Progress**: Track export progress with cancel support
-- **Excel Compatible**: CSV format with UTF-8 BOM for Excel compatibility
+- **Contextual Help**: Tooltips on every control explaining features
 
 ## Quick Start
 
@@ -99,6 +113,24 @@ npm run build
 
 ## Usage
 
+### Two Ways to Export
+
+**Quick Export (Casual Users)**
+1. Set your filters in the Filter tab
+2. Click the **Export** dropdown button
+3. Select your format (CSV, JSON, XLSX, XML, or YAML)
+4. Done! File downloads with smart defaults
+
+**Advanced Export (Power Users)**
+1. Configure filters in Filter tab
+2. Add field-level filters in Advanced tab (optional)
+3. Go to **Output tab** to customize:
+   - Export format
+   - Specific locales
+   - Specific fields
+   - Custom filename
+4. Click **Export** dropdown → **Advanced (use Output tab)**
+
 ### Search & Preview
 
 1. Navigate to **Apps** in the Contentful web UI main menu
@@ -152,11 +184,23 @@ npm run build
 3. Skip the search preview
 4. Click "Export to CSV" directly
 
-## CSV Format
+## Export Formats
 
-The exported CSV uses clean, human-readable formatting with **consistent columns** across all export methods (full export, "Any" content type search, or selected entries):
+All 5 formats use clean, human-readable formatting with **consistent data structure** across all export methods (quick export, advanced export, or selected entries).
 
-### Column Headers
+### Available Formats
+
+| Format | Best For | File Extension |
+|--------|----------|----------------|
+| **CSV** | Excel, Google Sheets, data analysis | `.csv` |
+| **JSON** | APIs, web applications, JavaScript | `.json` |
+| **XLSX** | Microsoft Excel, formatted spreadsheets | `.xlsx` |
+| **XML** | Enterprise systems, SOAP APIs, legacy integrations | `.xml` |
+| **YAML** | Configuration files, DevOps, CI/CD pipelines | `.yaml` |
+
+### CSV Format Details
+
+#### Column Headers
 - **Entry ID**: Unique identifier for the entry
 - **Created**: Entry creation date (YYYY-MM-DD)
 - **Updated**: Last update date (YYYY-MM-DD)
@@ -165,7 +209,7 @@ The exported CSV uses clean, human-readable formatting with **consistent columns
 - **Content Type**: Human-readable content type name
 - **Field columns**: Use field names from your content model (e.g., "Title (en-US)", "Author")
 
-### Data Formatting
+#### Data Formatting (CSV)
 - **References**: Just the entry/asset ID (e.g., `abc123`)
 - **Arrays**: Semicolon-separated values (e.g., `tech; blog; tips`)
 - **Dates**: YYYY-MM-DD format
@@ -173,12 +217,30 @@ The exported CSV uses clean, human-readable formatting with **consistent columns
 - **Objects**: JSON strings for complex data
 - **User Names**: Resolved to full names (e.g., "Miles Stauffer") instead of IDs
 
-### Export Methods
+### Format-Specific Features
 
-All three export methods produce **identical column structures**:
-1. **Full Export** (Export to CSV button) - exports all matching entries
-2. **Any Content Type Export** - searches across all content types with consistent formatting
-3. **Selected Export** (Export Selected button) - exports only checked entries
+**JSON**
+- Pretty-printed with 2-space indentation
+- Array of objects, one per entry
+- Native data types preserved (strings, numbers, booleans)
+
+**XLSX (Excel)**
+- Auto-sized columns based on content
+- Compression enabled for smaller file sizes
+- Single worksheet named "Entries"
+- Opens directly in Microsoft Excel
+
+**XML**
+- Structured with proper XML declaration
+- Root element: `<entries>`
+- Each entry in `<entry>` element with field sub-elements
+- Field names converted to valid XML element names
+
+**YAML**
+- Human-readable with 2-space indentation
+- 120-character line width
+- Array of objects format
+- Perfect for configuration management
 
 **Example CSV output:**
 ```csv
