@@ -2,7 +2,18 @@
 
 A powerful Contentful App that allows you to export unlimited entries from any content type to **5 different formats** (CSV, JSON, XLSX, XML, YAML), bypassing the 40-entry limitation of the Contentful web interface.
 
+## One-Click Install
+
+Already a Contentful user? Install the hosted app directly into your space — no clone, build, or upload required:
+
+**[Install Bulk Entry CSV Exporter in Contentful](https://app.contentful.com/deeplink?link=apps&id=79UvsbUCbJnMSGgk7GxrbN)**
+
+After clicking, choose the space you want to install it into and follow Contentful's prompts. The app will appear under **Apps** in your space's navigation.
+
+---
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Install in Contentful](https://img.shields.io/badge/Install-Contentful-2478CC?logo=contentful&logoColor=white)](https://app.contentful.com/deeplink?link=apps&id=79UvsbUCbJnMSGgk7GxrbN)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
 
@@ -46,7 +57,11 @@ A powerful Contentful App that allows you to export unlimited entries from any c
 
 ## Quick Start
 
-### Installation
+### Option A: One-Click Install (Recommended)
+
+[Install Bulk Entry CSV Exporter in Contentful](https://app.contentful.com/deeplink?link=apps&id=79UvsbUCbJnMSGgk7GxrbN) — pick your space and follow the prompts. You're done in under a minute.
+
+### Option B: Local Development / Self-Hosted
 
 1. **Clone the repository**
 ```bash
