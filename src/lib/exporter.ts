@@ -1,8 +1,8 @@
 import type { CMAClient } from '@contentful/app-sdk';
 import { createThrottler } from './throttle';
 import { paginateEntries, getEntryCount } from './paginate';
-import { flattenEntries, flattenEntry, getColumnHeaders, type ContentType, type Entry } from './flatten';
-import { exportToCSV } from './csv';
+import { flattenEntries, flattenEntry, type ContentType, type Entry } from './flatten';
+import { exportData, getFileExtension, type ExportFormat } from './exportFormats';
 
 export interface ExportOptions {
   contentType: ContentType | null;
@@ -11,6 +11,7 @@ export interface ExportOptions {
   fields?: string[]; // Optional field filter
   filters?: Record<string, unknown>;
   filename?: string;
+  format?: ExportFormat; // Export format (csv, json, xlsx, xml, yaml)
   userMap?: Record<string, string>; // Map of user IDs to names
   contentTypeMap?: Record<string, ContentType>; // Map of content type IDs to schemas
 }
@@ -195,25 +196,27 @@ export class Exporter {
         return;
       }
 
+      const format = options.format || 'csv';
+      const formatName = format.toUpperCase();
+      
       onProgress({
         fetched,
         total,
         status: 'processing',
-        message: 'Generating CSV...',
+        message: `Generating ${formatName}...`,
       });
 
-      const headers = options.contentType 
-        ? getColumnHeaders(options.contentType, options.locales)
-        : undefined; // Let CSV lib infer headers from data
-      const filename = options.filename || `${options.contentTypeId}-export.csv`;
+      const baseFilename = options.filename || `${options.contentTypeId}-export`;
+      const extension = getFileExtension(format);
+      const filename = baseFilename.endsWith(extension) ? baseFilename : `${baseFilename}${extension}`;
 
-      exportToCSV(allRows, filename, headers);
+      exportData({ rows: allRows, filename }, format);
 
       onProgress({
         fetched,
         total,
         status: 'complete',
-        message: `Successfully exported ${fetched} entries`,
+        message: `Successfully exported ${fetched} entries as ${formatName}`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

@@ -19,6 +19,8 @@ import {
 import { PlusIcon, DeleteIcon, FilterIcon, InfoCircleIcon } from '@contentful/f36-icons';
 import type { ContentType } from '../lib/flatten';
 import type { EntryStatus, FieldFilter } from '../lib/queryBuilder';
+import type { ExportFormat } from '../lib/exportFormats';
+import { getFileExtension, getFormatName } from '../lib/exportFormats';
 
 export interface ExportFormData {
   contentType: ContentType | null;
@@ -38,6 +40,7 @@ export interface ExportFormData {
   conceptsMatchAll?: boolean;
   fieldFilters?: FieldFilter[];
   customFilename?: string;
+  format?: ExportFormat; // Export format
 }
 
 export interface ExportFormProps {
@@ -84,6 +87,7 @@ export function ExportForm({
   const [fieldFilters, setFieldFilters] = useState<FieldFilter[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [customFilename, setCustomFilename] = useState('');
+  const [format, setFormat] = useState<ExportFormat>('csv');
 
   const selectedContentType = useMemo(
     () => contentTypes.find(ct => ct.sys.id === contentTypeId) || null,
@@ -94,6 +98,12 @@ export function ExportForm({
     const today = new Date().toISOString().split('T')[0];
     return `${contentTypeId || 'contentful-export'}-${today}`;
   }, [contentTypeId]);
+
+  const filenameWithExtension = useMemo(() => {
+    const base = customFilename || defaultFilename;
+    const extension = getFileExtension(format);
+    return base.endsWith(extension) ? base : `${base}${extension}`;
+  }, [customFilename, defaultFilename, format]);
 
   const activeFilters = useMemo(() => {
     const filters: Array<{ label: string; onRemove: () => void }> = [];
@@ -146,6 +156,7 @@ export function ExportForm({
     conceptsMatchAll,
     fieldFilters,
     customFilename: customFilename || defaultFilename,
+    format,
   };
 
   const handleEstimate = () => {
@@ -636,6 +647,35 @@ export function ExportForm({
 
               <Box style={{ flex: 1 }}>
                 <Stack flexDirection="column" spacing="spacingM">
+                  <FormControl>
+                    <Flex alignItems="center" gap="spacingXs">
+                      <FormControl.Label>Export Format</FormControl.Label>
+                      <Tooltip content="Choose the file format for your export. CSV for spreadsheets, JSON for APIs, XLSX for Excel, XML for enterprise systems, YAML for configs" placement="right">
+                        <IconButton
+                          variant="transparent"
+                          icon={<InfoCircleIcon />}
+                          aria-label="Help"
+                          size="small"
+                          style={{ padding: 0, minHeight: 'auto' }}
+                        />
+                      </Tooltip>
+                    </Flex>
+                    <Select
+                      value={format}
+                      onChange={(e) => setFormat(e.target.value as ExportFormat)}
+                      isDisabled={isExporting}
+                    >
+                      <Select.Option value="csv">CSV - Comma-Separated Values</Select.Option>
+                      <Select.Option value="json">JSON - JavaScript Object Notation</Select.Option>
+                      <Select.Option value="xlsx">XLSX - Excel Workbook</Select.Option>
+                      <Select.Option value="xml">XML - Extensible Markup Language</Select.Option>
+                      <Select.Option value="yaml">YAML - YAML Ain't Markup Language</Select.Option>
+                    </Select>
+                    <FormControl.HelpText>
+                      Selected format: {getFormatName(format)}
+                    </FormControl.HelpText>
+                  </FormControl>
+
                   {selectedContentType && (
                     <FormControl>
                       <Flex alignItems="center" gap="spacingXs">
@@ -727,10 +767,10 @@ export function ExportForm({
                         isDisabled={isExporting}
                         style={{ flexGrow: 1 }}
                       />
-                      <Box style={{ flexShrink: 0, paddingBottom: '2px' }}>.csv</Box>
+                      <Box style={{ flexShrink: 0, paddingBottom: '2px' }}>{getFileExtension(format)}</Box>
                     </Flex>
                     <FormControl.HelpText>
-                      Customize the filename for your export
+                      Final filename: {filenameWithExtension}
                     </FormControl.HelpText>
                   </FormControl>
                 </Stack>
@@ -765,14 +805,14 @@ export function ExportForm({
             </Button>
           </Tooltip>
 
-          <Tooltip content="Download all matching entries as a CSV file. Large exports may take several minutes" placement="top">
+          <Tooltip content={`Download all matching entries as a ${getFormatName(format)} file. Large exports may take several minutes`} placement="top">
             <Button
               type="submit"
               variant="primary"
               isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
               isLoading={isExporting}
             >
-              Export to CSV
+              Export as {format.toUpperCase()}
             </Button>
           </Tooltip>
           

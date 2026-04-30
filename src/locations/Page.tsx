@@ -55,6 +55,7 @@ const Page = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [lastSearchQuery, setLastSearchQuery] = useState<Record<string, unknown> | null>(null);
+  const [lastFormData, setLastFormData] = useState<ExportFormData | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [contentTypeMap, setContentTypeMap] = useState<Record<string, { name: string; displayField?: string }>>({});
   const [contentTypeSchemaMap, setContentTypeSchemaMap] = useState<Record<string, ContentType>>({});
@@ -175,6 +176,7 @@ const Page = () => {
       setIsSearching(true);
       setSearchResults([]);
       setSelectedEntryIds([]);
+      setLastFormData(data); // Save form data for exports
       
       const query = buildQuery({
         contentTypeId: data.contentTypeId,
@@ -257,10 +259,11 @@ const Page = () => {
           locales: formData.locales,
           userMap: userMap,
           contentTypeMap: contentTypeSchemaMap,
+          format: lastFormData?.format || 'csv',
           filters: {
             'sys.id[in]': selectedIds.join(','),
           },
-          filename: `selected-${selectedIds.length}-entries-${new Date().toISOString().split('T')[0]}.csv`,
+          filename: `selected-${selectedIds.length}-entries-${new Date().toISOString().split('T')[0]}`,
         },
         (newProgress) => {
           setProgress(newProgress);
@@ -301,6 +304,7 @@ const Page = () => {
 
   const handleExport = async (data: ExportFormData) => {
     try {
+      setLastFormData(data); // Save form data
       setIsExporting(true);
       setProgress({
         fetched: 0,
@@ -339,10 +343,11 @@ const Page = () => {
           filters,
           userMap: userMap,
           contentTypeMap: contentTypeSchemaMap,
-          filename: data.customFilename ? `${data.customFilename}.csv` : 
+          format: data.format || 'csv',
+          filename: data.customFilename || 
             (data.contentTypeId ? 
-              `${data.contentTypeId}-${new Date().toISOString().split('T')[0]}.csv` :
-              `contentful-export-${new Date().toISOString().split('T')[0]}.csv`),
+              `${data.contentTypeId}-${new Date().toISOString().split('T')[0]}` :
+              `contentful-export-${new Date().toISOString().split('T')[0]}`),
         },
         (newProgress) => {
           setProgress(newProgress);
