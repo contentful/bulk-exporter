@@ -26,6 +26,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "upload": "contentful-app-scripts upload --bundle-dir ./dist --comment \"Production build\" --ci",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",

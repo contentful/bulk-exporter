@@ -73,7 +73,31 @@ The app will be available at `http://localhost:5173`
 
 ### Deploy to Production
 
-#### Option 1: Deploy to Vercel (Recommended)
+#### Option 1: Upload to Contentful (Hosted by Contentful)
+
+Contentful can host your app directly. This is the simplest deployment method.
+
+1. **Build the app**
+```bash
+npm run build
+```
+
+2. **Upload to Contentful**
+```bash
+npm run upload -- --organization-id YOUR_ORG_ID --definition-id YOUR_APP_DEF_ID --token YOUR_CMA_TOKEN
+```
+
+Or upload manually:
+- Go to your app definition in Contentful
+- Navigate to the "Hosting" tab
+- Upload the `dist/bundle.js` file
+
+**Finding your IDs:**
+- **Organization ID**: Found in your Contentful organization settings URL
+- **App Definition ID**: Found in your app's URL in Contentful (e.g., `app_installations/DEFINITION_ID`)
+- **CMA Token**: Create one at https://app.contentful.com/account/profile/cma_tokens
+
+#### Option 2: Deploy to Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
 
