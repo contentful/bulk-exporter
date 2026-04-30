@@ -60,8 +60,46 @@ const Page = () => {
   const [contentTypeMap, setContentTypeMap] = useState<Record<string, { name: string; displayField?: string }>>({});
   const [contentTypeSchemaMap, setContentTypeSchemaMap] = useState<Record<string, ContentType>>({});
   const [userMap, setUserMap] = useState<Record<string, string>>({});
-  
+  const [columnSort, setColumnSort] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
+
   const exporterRef = useRef<Exporter | null>(null);
+
+  /**
+   * Translate the result-table SortColumn to the flat-row column name produced
+   * by flatten.ts so the exporter can sort the downloaded file rows. For the
+   * "name" sort there is no fixed column name (flatten.ts emits the display
+   * field's name, e.g. "Title (en-US)"), so we resolve it from the selected
+   * content type when possible and fall back to the Entry ID.
+   */
+  const buildSortByColumn = (
+    contentTypeId: string | undefined
+  ): { column: string; direction: 'asc' | 'desc' } | undefined => {
+    if (!columnSort) return undefined;
+
+    if (columnSort.column === 'name') {
+      const ct = contentTypeId ? contentTypeSchemaMap[contentTypeId] : undefined;
+      const displayFieldId = ct?.displayField;
+      const displayField = displayFieldId
+        ? ct?.fields.find(f => f.id === displayFieldId)
+        : undefined;
+      if (displayField) {
+        const colName = displayField.localized
+          ? `${displayField.name} (${locales[0]?.code ?? 'en-US'})`
+          : displayField.name;
+        return { column: colName, direction: columnSort.direction };
+      }
+      return { column: 'Entry ID', direction: columnSort.direction };
+    }
+
+    const fixed: Record<string, string> = {
+      contentType: 'Content Type',
+      updated: 'Updated',
+      updatedBy: 'Last Updated By',
+      status: 'Status',
+    };
+    const rowKey = fixed[columnSort.column];
+    return rowKey ? { column: rowKey, direction: columnSort.direction } : undefined;
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -264,6 +302,7 @@ const Page = () => {
             'sys.id[in]': selectedIds.join(','),
           },
           filename: `selected-${selectedIds.length}-entries-${new Date().toISOString().split('T')[0]}`,
+          sortByColumn: buildSortByColumn(contentTypeId),
         },
         (newProgress) => {
           setProgress(newProgress);
@@ -344,10 +383,11 @@ const Page = () => {
           userMap: userMap,
           contentTypeMap: contentTypeSchemaMap,
           format: data.format || 'csv',
-          filename: data.customFilename || 
-            (data.contentTypeId ? 
+          filename: data.customFilename ||
+            (data.contentTypeId ?
               `${data.contentTypeId}-${new Date().toISOString().split('T')[0]}` :
               `contentful-export-${new Date().toISOString().split('T')[0]}`),
+          sortByColumn: buildSortByColumn(data.contentTypeId),
         },
         (newProgress) => {
           setProgress(newProgress);
@@ -428,6 +468,7 @@ const Page = () => {
           spaceId={sdk.ids.space}
           environmentId={sdk.ids.environment}
           isExporting={isExporting}
+          onSortChange={setColumnSort}
         />
 
         <ProgressPanel progress={progress} onCancel={handleCancel} />

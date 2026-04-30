@@ -11,6 +11,33 @@ export interface ExportData {
 }
 
 /**
+ * Excel cells have a hard 32,767 character limit. Anything over crashes the
+ * xlsx writer. Trim long string values and append a marker so users can tell
+ * the value was truncated. Non-string values are passed through unchanged.
+ */
+export const XLSX_CELL_CHARACTER_LIMIT = 32_767;
+const XLSX_TRUNCATE_AT = 31_900;
+const XLSX_TRUNCATE_SUFFIX = ' ...[truncated]';
+
+export function truncateForXlsx<T extends string | number | boolean | null>(value: T): T {
+  if (typeof value !== 'string') return value;
+  if (value.length <= XLSX_CELL_CHARACTER_LIMIT) return value;
+  return (value.slice(0, XLSX_TRUNCATE_AT) + XLSX_TRUNCATE_SUFFIX) as T;
+}
+
+function truncateRowsForXlsx(
+  rows: ExportData['rows']
+): ExportData['rows'] {
+  return rows.map(row => {
+    const truncated: Record<string, string | number | boolean | null> = {};
+    for (const [key, value] of Object.entries(row)) {
+      truncated[key] = truncateForXlsx(value);
+    }
+    return truncated;
+  });
+}
+
+/**
  * Export data to CSV format
  */
 export function exportToCsv(data: ExportData): void {
@@ -32,18 +59,23 @@ export function exportToJson(data: ExportData): void {
  * Export data to XLSX (Excel) format
  */
 export function exportToXlsx(data: ExportData): void {
-  // Create a new workbook
+  // Truncate any cell value that exceeds Excel's 32,767-char hard limit so the
+  // xlsx writer doesn't throw "Text length must not exceed 32767 characters".
+  const safeRows = truncateRowsForXlsx(data.rows);
+
   const workbook = XLSX.utils.book_new();
-  
-  // Convert rows to worksheet
-  const worksheet = XLSX.utils.json_to_sheet(data.rows);
-  
-  // Set column widths based on content
-  const columnWidths = Object.keys(data.rows[0] || {}).map(key => ({
-    wch: Math.max(
-      key.length,
-      ...data.rows.slice(0, 100).map(row => 
-        String(row[key] || '').length
+  const worksheet = XLSX.utils.json_to_sheet(safeRows);
+
+  // Cap column-width estimates so a single very-long cell doesn't blow out
+  // the column width calculation.
+  const columnWidths = Object.keys(safeRows[0] || {}).map(key => ({
+    wch: Math.min(
+      80,
+      Math.max(
+        key.length,
+        ...safeRows.slice(0, 100).map(row =>
+          String(row[key] ?? '').length
+        )
       )
     )
   }));

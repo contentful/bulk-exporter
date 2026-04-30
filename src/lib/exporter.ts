@@ -14,6 +14,35 @@ export interface ExportOptions {
   format?: ExportFormat; // Export format (csv, json, xlsx, xml, yaml)
   userMap?: Record<string, string>; // Map of user IDs to names
   contentTypeMap?: Record<string, ContentType>; // Map of content type IDs to schemas
+  /**
+   * Optional in-memory sort applied to all rows after fetching, before the
+   * file is written. Driven by the user clicking a column header in the
+   * results preview so the downloaded file matches what they see.
+   */
+  sortByColumn?: { column: string; direction: 'asc' | 'desc' };
+}
+
+function sortRowsByColumn<T extends Record<string, string | number | boolean | null>>(
+  rows: T[],
+  column: string,
+  direction: 'asc' | 'desc'
+): T[] {
+  const factor = direction === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const av = a[column];
+    const bv = b[column];
+
+    // null/undefined always sort to the end regardless of direction
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+
+    if (typeof av === 'number' && typeof bv === 'number') {
+      return (av - bv) * factor;
+    }
+
+    return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * factor;
+  });
 }
 
 export interface ExportProgress {
@@ -198,7 +227,7 @@ export class Exporter {
 
       const format = options.format || 'csv';
       const formatName = format.toUpperCase();
-      
+
       onProgress({
         fetched,
         total,
@@ -210,7 +239,11 @@ export class Exporter {
       const extension = getFileExtension(format);
       const filename = baseFilename.endsWith(extension) ? baseFilename : `${baseFilename}${extension}`;
 
-      exportData({ rows: allRows, filename }, format);
+      const finalRows = options.sortByColumn
+        ? sortRowsByColumn(allRows, options.sortByColumn.column, options.sortByColumn.direction)
+        : allRows;
+
+      exportData({ rows: finalRows, filename }, format);
 
       onProgress({
         fetched,

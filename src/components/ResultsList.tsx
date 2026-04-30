@@ -17,7 +17,14 @@ function SortableHeader({ column, label, activeColumn, direction, onSort }: Sort
   const isActive = activeColumn === column;
   const Icon = isActive && direction === 'desc' ? ArrowDownIcon : ArrowUpIcon;
   return (
-    <Tooltip content={`Sort by ${label}${isActive ? ` (${direction === 'asc' ? 'ascending' : 'descending'})` : ''}`} placement="top">
+    <Tooltip
+      content={
+        isActive
+          ? `Sorted by ${label} (${direction === 'asc' ? 'ascending' : 'descending'}) — applies to your next export. Click to flip direction.`
+          : `Sort by ${label}. Applies to the next export too.`
+      }
+      placement="top"
+    >
       <Flex
         alignItems="center"
         gap="spacing2Xs"
@@ -116,6 +123,11 @@ export interface ResultsListProps {
   spaceId?: string;
   environmentId?: string;
   isExporting?: boolean;
+  /**
+   * Notify the parent when the user changes the column sort, so the next
+   * Export can match the visible order.
+   */
+  onSortChange?: (sort: { column: SortColumn; direction: SortDirection } | null) => void;
 }
 
 export function ResultsList({ 
@@ -132,6 +144,7 @@ export function ResultsList({
   spaceId = '',
   environmentId = 'master',
   isExporting = false,
+  onSortChange,
 }: ResultsListProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -216,11 +229,22 @@ export function ResultsList({
 
   const handleSortClick = (column: SortColumn) => {
     if (sortColumn === column) {
-      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      const nextDir: SortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      setSortDirection(nextDir);
+      onSortChange?.({ column, direction: nextDir });
     } else {
       setSortColumn(column);
       setSortDirection('asc');
+      onSortChange?.({ column, direction: 'asc' });
     }
+  };
+
+  const sortColumnLabels: Record<SortColumn, string> = {
+    name: 'Name',
+    contentType: 'Content Type',
+    updated: 'Updated',
+    updatedBy: 'Last Updated By',
+    status: 'Status',
   };
 
   if (loading && results.length === 0) {
@@ -337,6 +361,16 @@ export function ResultsList({
             <Text fontWeight="fontWeightDemiBold">
               Search Results {totalCount !== undefined && `(${totalCount.toLocaleString()} total)`}
             </Text>
+            {sortColumn && (
+              <Tooltip
+                content="This sort applies to your next export — the file rows will match the order shown below"
+                placement="top"
+              >
+                <Badge variant="secondary">
+                  Sorted by {sortColumnLabels[sortColumn]} ({sortDirection === 'asc' ? 'A→Z' : 'Z→A'})
+                </Badge>
+              </Tooltip>
+            )}
             {selectedIds.length > 0 && (
               <>
                 <Badge variant="primary">{selectedIds.length} selected</Badge>
