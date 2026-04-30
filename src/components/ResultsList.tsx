@@ -82,6 +82,78 @@ export function ResultsList({
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  // NOTE: All hooks must run on every render. The early returns below mean any
+  // hook called after them would violate the rules of hooks (React error #310).
+  // That's why this useMemo lives here, before any conditional return.
+  const sortedResults = useMemo(() => {
+    if (!sortColumn) return results;
+
+    const titleOf = (entry: SearchResult): string => {
+      if (!entry.fields) return entry.sys.id;
+      const contentTypeId = entry.sys.contentType.sys.id;
+      const displayField = contentTypeMap[contentTypeId]?.displayField;
+      if (displayField && entry.fields[displayField]) {
+        const firstValue = Object.values(entry.fields[displayField])[0];
+        if (firstValue && typeof firstValue === 'string') return firstValue;
+      }
+      const titleFields = ['title', 'name', 'displayName', 'label', 'heading', 'internalName'];
+      for (const field of titleFields) {
+        if (entry.fields[field]) {
+          const firstValue = Object.values(entry.fields[field])[0];
+          if (firstValue && typeof firstValue === 'string') return firstValue;
+        }
+      }
+      return entry.sys.id;
+    };
+
+    const contentTypeOf = (entry: SearchResult): string => {
+      const id = entry.sys.contentType.sys.id;
+      return contentTypeMap[id]?.name || id;
+    };
+
+    const updatedByOf = (entry: SearchResult): string => {
+      const id = entry.sys.updatedBy?.sys.id;
+      return id ? (userMap[id] || id) : 'Unknown';
+    };
+
+    const statusOf = (entry: SearchResult): string => {
+      const hasPublished = entry.sys.publishedVersion !== undefined;
+      const isChanged =
+        hasPublished &&
+        entry.sys.version !== undefined &&
+        entry.sys.publishedVersion !== undefined &&
+        entry.sys.version > entry.sys.publishedVersion + 1;
+      if (!hasPublished) return 'draft';
+      if (isChanged) return 'changed';
+      return 'published';
+    };
+
+    const accessor = (entry: SearchResult): string => {
+      switch (sortColumn) {
+        case 'name':
+          return titleOf(entry).toLowerCase();
+        case 'contentType':
+          return contentTypeOf(entry).toLowerCase();
+        case 'updated':
+          return entry.sys.updatedAt;
+        case 'updatedBy':
+          return updatedByOf(entry).toLowerCase();
+        case 'status':
+          return statusOf(entry);
+      }
+    };
+
+    const sorted = [...results].sort((a, b) => {
+      const av = accessor(a);
+      const bv = accessor(b);
+      if (av < bv) return -1;
+      if (av > bv) return 1;
+      return 0;
+    });
+
+    return sortDirection === 'desc' ? sorted.reverse() : sorted;
+  }, [results, sortColumn, sortDirection, contentTypeMap, userMap]);
+
   const handleSortClick = (column: SortColumn) => {
     if (sortColumn === column) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -196,38 +268,6 @@ export function ResultsList({
     const date = new Date(dateString);
     return date.toISOString().split('T')[0]; // YYYY-MM-DD format
   };
-
-  const sortedResults = useMemo(() => {
-    if (!sortColumn) return results;
-
-    const accessor = (entry: SearchResult): string => {
-      switch (sortColumn) {
-        case 'name':
-          return getTitle(entry).toLowerCase();
-        case 'contentType':
-          return getContentTypeName(entry).toLowerCase();
-        case 'updated':
-          return entry.sys.updatedAt;
-        case 'updatedBy':
-          return getLastUpdatedBy(entry).toLowerCase();
-        case 'status':
-          return getStatus(entry);
-      }
-    };
-
-    const sorted = [...results].sort((a, b) => {
-      const av = accessor(a);
-      const bv = accessor(b);
-      if (av < bv) return -1;
-      if (av > bv) return 1;
-      return 0;
-    });
-
-    return sortDirection === 'desc' ? sorted.reverse() : sorted;
-    // getTitle/getContentTypeName/etc. close over props but are stable for the
-    // same `results` reference, so depending on those is sufficient
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results, sortColumn, sortDirection, contentTypeMap, userMap]);
 
   const SortableHeader = ({ column, label }: { column: SortColumn; label: string }) => {
     const isActive = sortColumn === column;
