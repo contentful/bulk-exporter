@@ -411,6 +411,7 @@ const Page = () => {
         isExporting={isExporting}
         isSearching={isSearching}
         estimatedCount={estimatedCount}
+        spaceId={sdk.ids.space}
       />
 
         <ResultsList

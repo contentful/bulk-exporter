@@ -155,6 +155,35 @@ describe('flatten', () => {
       expect(result['Body (en-US)']).toBeNull();
     });
 
+    it('should respect the order of fields in the fields option', () => {
+      const result = flattenEntry(mockEntry, {
+        contentType: mockContentType,
+        locales: ['en-US'],
+        fields: ['slug', 'title', 'body'],
+      });
+
+      const orderedKeys = Object.keys(result);
+      const slugIdx = orderedKeys.indexOf('Slug');
+      const titleIdx = orderedKeys.indexOf('Title (en-US)');
+      const bodyIdx = orderedKeys.indexOf('Body (en-US)');
+
+      expect(slugIdx).toBeGreaterThan(-1);
+      expect(titleIdx).toBeGreaterThan(slugIdx);
+      expect(bodyIdx).toBeGreaterThan(titleIdx);
+    });
+
+    it('should ignore unknown field IDs in the fields option', () => {
+      const result = flattenEntry(mockEntry, {
+        contentType: mockContentType,
+        locales: ['en-US'],
+        fields: ['title', 'doesNotExist', 'slug'],
+      });
+
+      expect(result['Title (en-US)']).toBe('Hello World');
+      expect(result['Slug']).toBe('hello-world');
+      expect(result['doesNotExist']).toBeUndefined();
+    });
+
     it('should handle unpublished entries', () => {
       const unpublishedEntry: Entry = {
         ...mockEntry,

@@ -33,7 +33,11 @@ A powerful Contentful App that allows you to export unlimited entries from any c
 
 ### Export Capabilities
 - **Unlimited Entries**: Export any number of entries from any content type
-- **Choose Columns**: Select specific fields to include, reducing file size
+- **Smart Field Selection**: Auto-selects the title and key fields when you pick a content type
+- **One-Click Presets**: Essentials, Content, References, All, Clear
+- **Reorderable Columns**: Use up/down arrows to set the exact column order in your export
+- **Field Search**: Filter long field lists by name or ID
+- **Per-User Preferences**: Field selection, format, and filename are saved in your browser via `localStorage` so each user keeps their own settings
 - **Locale Selection**: Export all locales or select specific ones
 - **Clean Output**: Human-readable column headers and formatted data
 - **Rate-Limit Aware**: Automatic throttling (8 req/s for paid tier) and retry logic
@@ -77,25 +81,53 @@ The app will be available at `http://localhost:5173`
 
 Contentful can host your app directly. This is the simplest deployment method.
 
-1. **Build the app**
-```bash
-npm run build
-```
+**Requirements:**
+- Max bundle size: 10MB (this app is ~1.6MB)
+- Max files: 500 (this app has 2 files)
+- Must include `index.html` at the root level
 
-2. **Upload to Contentful**
+**Manual Upload (Recommended):**
+
+1. **Build the app**
+   ```bash
+   npm run build
+   ```
+
+2. **Open your app in Contentful**
+   - Go to https://app.contentful.com/deeplink?link=app-definition-list
+   - Find your "Bulk Entry CSV Exporter" app
+   - Click to open the app details
+
+3. **Upload the bundle**
+   - Click on the **"Bundles"** tab (NOT the "Hosting" tab)
+   - You'll see a drop zone for uploading files
+   - **IMPORTANT**: Open your `dist/` folder locally and **select BOTH files**:
+     - `index.html`
+     - `bundle.js`
+   - **Drag and drop these 2 files** directly into the drop zone
+   - Do NOT drag the `dist/` folder itself - only the files inside it
+   - The upload will automatically create a new AppBundle
+   - Add a comment when prompted (e.g., "Production release v1.0")
+
+4. **Activate the bundle**
+   - After upload completes, click **"Activate"** next to your newly created bundle
+   - Your app is now live!
+
+**CLI Upload (Alternative):**
+
 ```bash
 npm run upload -- --organization-id YOUR_ORG_ID --definition-id YOUR_APP_DEF_ID --token YOUR_CMA_TOKEN
 ```
 
-Or upload manually:
-- Go to your app definition in Contentful
-- Navigate to the "Hosting" tab
-- Upload the `dist/bundle.js` file
-
 **Finding your IDs:**
 - **Organization ID**: Found in your Contentful organization settings URL
-- **App Definition ID**: Found in your app's URL in Contentful (e.g., `app_installations/DEFINITION_ID`)
+- **App Definition ID**: Found in your app's URL in Contentful (the ID in the app management page URL)
 - **CMA Token**: Create one at https://app.contentful.com/account/profile/cma_tokens
+
+**Troubleshooting:**
+- If the app doesn't load, ensure `index.html` is at the root level (not in a subfolder)
+- Make sure you uploaded the files FROM inside `dist/`, not the `dist/` folder itself
+- The build must use relative paths (already configured with `base: './'` in `vite.config.ts`)
 
 #### Option 2: Deploy to Vercel
 

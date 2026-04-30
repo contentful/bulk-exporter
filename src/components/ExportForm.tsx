@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Form,
   FormControl,
@@ -16,12 +16,37 @@ import {
   Badge,
   Tooltip,
   Menu,
+  Subheading,
+  TextLink,
 } from '@contentful/f36-components';
-import { PlusIcon, DeleteIcon, FilterIcon, InfoCircleIcon, ChevronDownIcon } from '@contentful/f36-icons';
+import {
+  PlusIcon,
+  DeleteIcon,
+  FilterIcon,
+  InfoCircleIcon,
+  ChevronDownIcon,
+  SearchIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  CloseIcon,
+} from '@contentful/f36-icons';
 import type { ContentType } from '../lib/flatten';
 import type { EntryStatus, FieldFilter } from '../lib/queryBuilder';
 import type { ExportFormat } from '../lib/exportFormats';
 import { getFileExtension, getFormatName } from '../lib/exportFormats';
+import {
+  getFieldPreferences,
+  saveFieldPreferences,
+  getSpacePreferences,
+  saveSpacePreferences,
+  type FieldPreset,
+} from '../lib/preferences';
+import {
+  getSmartDefaults,
+  applyPreset,
+  groupFields,
+  detectPreset,
+} from '../lib/fieldSelection';
 
 export interface ExportFormData {
   contentType: ContentType | null;
@@ -56,6 +81,7 @@ export interface ExportFormProps {
   isExporting: boolean;
   isSearching: boolean;
   estimatedCount: number | null;
+  spaceId: string;
 }
 
 export function ExportForm({
@@ -70,12 +96,17 @@ export function ExportForm({
   isExporting,
   isSearching,
   estimatedCount,
+  spaceId,
 }: ExportFormProps) {
+  const initialSpacePrefs = useMemo(() => getSpacePreferences(spaceId), [spaceId]);
+
   const [contentTypeId, setContentTypeId] = useState('');
   const [selectedLocales, setSelectedLocales] = useState<string[]>(
     availableLocales.map(l => l.code)
   );
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [activePreset, setActivePreset] = useState<FieldPreset>('essentials');
+  const [fieldSearch, setFieldSearch] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<EntryStatus>('any');
   const [createdFrom, setCreatedFrom] = useState('');
@@ -89,13 +120,121 @@ export function ExportForm({
   const [conceptsMatchAll, setConceptsMatchAll] = useState(false);
   const [fieldFilters, setFieldFilters] = useState<FieldFilter[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [customFilename, setCustomFilename] = useState('');
-  const [format, setFormat] = useState<ExportFormat>('csv');
+  const [customFilename, setCustomFilename] = useState(initialSpacePrefs.filenamePattern ?? '');
+  const [format, setFormat] = useState<ExportFormat>(initialSpacePrefs.format ?? 'csv');
 
   const selectedContentType = useMemo(
     () => contentTypes.find(ct => ct.sys.id === contentTypeId) || null,
     [contentTypes, contentTypeId]
   );
+
+  // When content type changes: load saved field prefs or apply smart defaults
+  useEffect(() => {
+    if (!selectedContentType) {
+      setSelectedFields([]);
+      setActivePreset('essentials');
+      setFieldSearch('');
+      return;
+    }
+
+    const saved = getFieldPreferences(spaceId, selectedContentType.sys.id);
+    if (saved && saved.selectedFields.length > 0) {
+      setSelectedFields(saved.selectedFields);
+      setActivePreset(saved.lastPreset ?? detectPreset(selectedContentType, saved.selectedFields));
+    } else {
+      const defaults = getSmartDefaults(selectedContentType);
+      setSelectedFields(defaults);
+      setActivePreset('essentials');
+    }
+    setFieldSearch('');
+  }, [selectedContentType, spaceId]);
+
+  // Debounced save of field selection
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!selectedContentType) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveFieldPreferences(spaceId, selectedContentType.sys.id, {
+        selectedFields,
+        lastPreset: activePreset,
+      });
+    }, 500);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [selectedFields, activePreset, selectedContentType, spaceId]);
+
+  // Persist format and filename pattern at the space level
+  useEffect(() => {
+    if (!spaceId) return;
+    saveSpacePreferences(spaceId, { format });
+  }, [format, spaceId]);
+
+  useEffect(() => {
+    if (!spaceId) return;
+    if (customFilename) {
+      saveSpacePreferences(spaceId, { filenamePattern: customFilename });
+    }
+  }, [customFilename, spaceId]);
+
+  const fieldGroups = useMemo(
+    () => (selectedContentType ? groupFields(selectedContentType, fieldSearch) : []),
+    [selectedContentType, fieldSearch]
+  );
+
+  const handlePreset = (preset: FieldPreset) => {
+    if (!selectedContentType) return;
+    setSelectedFields(applyPreset(selectedContentType, preset));
+    setActivePreset(preset);
+  };
+
+  const handleResetDefaults = () => {
+    if (!selectedContentType) return;
+    setSelectedFields(getSmartDefaults(selectedContentType));
+    setActivePreset('essentials');
+  };
+
+  const handleFieldToggle = (fieldId: string, checked: boolean) => {
+    setSelectedFields(prev => {
+      const next = checked ? [...prev, fieldId] : prev.filter(id => id !== fieldId);
+      if (selectedContentType) {
+        setActivePreset(detectPreset(selectedContentType, next));
+      }
+      return next;
+    });
+  };
+
+  const moveField = (index: number, direction: -1 | 1) => {
+    setSelectedFields(prev => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      setActivePreset('custom');
+      return next;
+    });
+  };
+
+  const removeField = (fieldId: string) => {
+    setSelectedFields(prev => {
+      const next = prev.filter(id => id !== fieldId);
+      if (selectedContentType) {
+        setActivePreset(detectPreset(selectedContentType, next));
+      }
+      return next;
+    });
+  };
+
+  const fieldsById = useMemo(() => {
+    const map: Record<string, ContentType['fields'][number]> = {};
+    if (selectedContentType) {
+      for (const f of selectedContentType.fields) {
+        map[f.id] = f;
+      }
+    }
+    return map;
+  }, [selectedContentType]);
 
   const defaultFilename = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -697,7 +836,7 @@ export function ExportForm({
                     <FormControl>
                       <Flex alignItems="center" gap="spacingXs">
                         <FormControl.Label>Fields to Export</FormControl.Label>
-                        <Tooltip content="Choose specific fields to export, or leave empty to include all fields. Selecting fewer fields creates smaller, more focused CSVs" placement="right">
+                        <Tooltip content="Pick a preset or hand-pick fields. Your selections are saved per content type in this browser, so each user keeps their own preferences" placement="right">
                           <IconButton
                             variant="transparent"
                             icon={<InfoCircleIcon />}
@@ -708,57 +847,236 @@ export function ExportForm({
                         </Tooltip>
                       </Flex>
                       <FormControl.HelpText>
-                        Leave empty for all fields
+                        {selectedFields.length === 0
+                          ? 'No fields selected — export will include only system fields'
+                          : `${selectedFields.length} of ${selectedContentType.fields.length} fields selected`}
                       </FormControl.HelpText>
-                      <Stack flexDirection="row" spacing="spacingS" marginBottom="spacingXs">
-                        <Tooltip content="Include all fields from this content type" placement="top">
+
+                      <Flex gap="spacingXs" flexWrap="wrap" marginBottom="spacingS">
+                        <Tooltip content="Title field, slug, and required identifiers" placement="top">
+                          <Button
+                            size="small"
+                            variant={activePreset === 'essentials' ? 'primary' : 'secondary'}
+                            onClick={() => handlePreset('essentials')}
+                            isDisabled={isExporting}
+                          >
+                            Essentials
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="Text-based fields only (Symbol, Text, Rich Text, Date)" placement="top">
+                          <Button
+                            size="small"
+                            variant={activePreset === 'content' ? 'primary' : 'secondary'}
+                            onClick={() => handlePreset('content')}
+                            isDisabled={isExporting}
+                          >
+                            Content
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="Reference fields only (Link to Entry/Asset)" placement="top">
+                          <Button
+                            size="small"
+                            variant={activePreset === 'references' ? 'primary' : 'secondary'}
+                            onClick={() => handlePreset('references')}
+                            isDisabled={isExporting}
+                          >
+                            References
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="Include every field from this content type" placement="top">
+                          <Button
+                            size="small"
+                            variant={activePreset === 'all' ? 'primary' : 'secondary'}
+                            onClick={() => handlePreset('all')}
+                            isDisabled={isExporting}
+                          >
+                            All
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="Deselect every field" placement="top">
                           <Button
                             size="small"
                             variant="secondary"
                             onClick={() => {
-                              const allFieldIds = selectedContentType.fields.map(f => f.id);
-                              setSelectedFields(allFieldIds);
+                              setSelectedFields([]);
+                              setActivePreset('custom');
                             }}
                             isDisabled={isExporting}
                           >
-                            Select All
+                            Clear
                           </Button>
                         </Tooltip>
-                        <Tooltip content="Deselect all fields (export will include only system fields)" placement="top">
-                          <Button
-                            size="small"
-                            variant="secondary"
-                            onClick={() => setSelectedFields([])}
-                            isDisabled={isExporting}
-                          >
-                            Clear All
-                          </Button>
-                        </Tooltip>
-                      </Stack>
-                      <Box style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                        <Checkbox.Group
-                          value={selectedFields}
-                          onChange={(e) => {
-                            const target = e.target as HTMLInputElement;
-                            const value = target.value;
-                            setSelectedFields((prev) =>
-                              target.checked
-                                ? [...prev, value]
-                                : prev.filter((v) => v !== value)
-                            );
-                          }}
-                        >
-                          {selectedContentType.fields.map((field) => (
-                            <Checkbox
-                              key={field.id}
-                              value={field.id}
-                              isChecked={selectedFields.includes(field.id)}
-                              isDisabled={isExporting}
+                      </Flex>
+
+                      {selectedFields.length > 0 && (
+                        <Box marginBottom="spacingS">
+                          <Flex alignItems="center" gap="spacingXs" marginBottom="spacingXs">
+                            <Subheading
+                              marginBottom="none"
+                              style={{
+                                fontSize: '12px',
+                                textTransform: 'uppercase',
+                                color: 'var(--gray-700)',
+                              }}
                             >
-                              {field.name} ({field.id})
-                            </Checkbox>
-                          ))}
-                        </Checkbox.Group>
+                              Column Order
+                            </Subheading>
+                            <Tooltip
+                              content="Drag-style reorder using the arrows. Columns appear in this exact order in your export"
+                              placement="right"
+                            >
+                              <IconButton
+                                variant="transparent"
+                                icon={<InfoCircleIcon />}
+                                aria-label="Help"
+                                size="small"
+                                style={{ padding: 0, minHeight: 'auto' }}
+                              />
+                            </Tooltip>
+                          </Flex>
+                          <Box
+                            style={{
+                              border: '1px solid var(--gray-200)',
+                              borderRadius: '4px',
+                              padding: 'var(--spacing-xs)',
+                              backgroundColor: 'var(--gray-100)',
+                              maxHeight: '200px',
+                              overflowY: 'auto',
+                            }}
+                          >
+                            <Stack flexDirection="column" spacing="spacingXs" alignItems="stretch">
+                              {selectedFields.map((fieldId, index) => {
+                                const field = fieldsById[fieldId];
+                                if (!field) return null;
+                                return (
+                                  <Flex
+                                    key={fieldId}
+                                    alignItems="center"
+                                    gap="spacingXs"
+                                    style={{
+                                      backgroundColor: 'var(--white)',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      border: '1px solid var(--gray-200)',
+                                    }}
+                                  >
+                                    <Box style={{ minWidth: '24px', color: 'var(--gray-600)', fontSize: '12px' }}>
+                                      {index + 1}.
+                                    </Box>
+                                    <Box style={{ flexGrow: 1, minWidth: 0 }}>
+                                      <span style={{ fontSize: '14px' }}>{field.name}</span>
+                                      <span style={{ color: 'var(--gray-600)', fontSize: '12px', marginLeft: '6px' }}>
+                                        ({field.id})
+                                      </span>
+                                    </Box>
+                                    <Tooltip content="Move up" placement="top">
+                                      <IconButton
+                                        variant="transparent"
+                                        icon={<ArrowUpIcon />}
+                                        aria-label={`Move ${field.name} up`}
+                                        size="small"
+                                        onClick={() => moveField(index, -1)}
+                                        isDisabled={isExporting || index === 0}
+                                      />
+                                    </Tooltip>
+                                    <Tooltip content="Move down" placement="top">
+                                      <IconButton
+                                        variant="transparent"
+                                        icon={<ArrowDownIcon />}
+                                        aria-label={`Move ${field.name} down`}
+                                        size="small"
+                                        onClick={() => moveField(index, 1)}
+                                        isDisabled={isExporting || index === selectedFields.length - 1}
+                                      />
+                                    </Tooltip>
+                                    <Tooltip content="Remove from export" placement="top">
+                                      <IconButton
+                                        variant="transparent"
+                                        icon={<CloseIcon />}
+                                        aria-label={`Remove ${field.name}`}
+                                        size="small"
+                                        onClick={() => removeField(fieldId)}
+                                        isDisabled={isExporting}
+                                      />
+                                    </Tooltip>
+                                  </Flex>
+                                );
+                              })}
+                            </Stack>
+                          </Box>
+                        </Box>
+                      )}
+
+                      <Box marginBottom="spacingXs">
+                        <TextInput.Group>
+                          <Box style={{ flexGrow: 1 }}>
+                            <TextInput
+                              value={fieldSearch}
+                              onChange={(e) => setFieldSearch(e.target.value)}
+                              placeholder="Search fields by name or ID..."
+                              isDisabled={isExporting}
+                              icon={<SearchIcon />}
+                            />
+                          </Box>
+                        </TextInput.Group>
+                      </Box>
+
+                      <Box
+                        style={{
+                          maxHeight: '320px',
+                          overflowY: 'auto',
+                          border: '1px solid var(--gray-200)',
+                          borderRadius: '4px',
+                          padding: 'var(--spacing-s)',
+                        }}
+                      >
+                        {fieldGroups.length === 0 ? (
+                          <Box paddingTop="spacingXs" paddingBottom="spacingXs">
+                            <FormControl.HelpText>
+                              No fields match "{fieldSearch}"
+                            </FormControl.HelpText>
+                          </Box>
+                        ) : (
+                          fieldGroups.map((group) => (
+                            <Box key={group.id} marginBottom="spacingS">
+                              <Flex alignItems="center" gap="spacingXs" marginBottom="spacingXs">
+                                <Subheading marginBottom="none" style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--gray-700)' }}>
+                                  {group.label}
+                                </Subheading>
+                                {group.id === 'title' && (
+                                  <Badge variant="primary" size="small">Title</Badge>
+                                )}
+                                {group.id === 'required' && (
+                                  <Badge variant="warning" size="small">Required</Badge>
+                                )}
+                              </Flex>
+                              <Stack flexDirection="column" spacing="spacingXs" alignItems="flex-start">
+                                {group.fields.map((field) => (
+                                  <Checkbox
+                                    key={field.id}
+                                    value={field.id}
+                                    isChecked={selectedFields.includes(field.id)}
+                                    isDisabled={isExporting}
+                                    onChange={(e) => handleFieldToggle(field.id, e.target.checked)}
+                                  >
+                                    {field.name} <span style={{ color: 'var(--gray-600)', fontSize: '12px' }}>({field.id} · {field.type})</span>
+                                  </Checkbox>
+                                ))}
+                              </Stack>
+                            </Box>
+                          ))
+                        )}
+                      </Box>
+
+                      <Box marginTop="spacingXs">
+                        <TextLink
+                          as="button"
+                          variant="secondary"
+                          onClick={handleResetDefaults}
+                          isDisabled={isExporting}
+                        >
+                          Reset to smart defaults
+                        </TextLink>
                       </Box>
                     </FormControl>
                   )}

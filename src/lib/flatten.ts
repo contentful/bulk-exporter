@@ -29,6 +29,7 @@ export interface ContentType {
     name: string;
     type: string;
     localized: boolean;
+    required?: boolean;
     items?: {
       type: string;
       linkType?: string;
@@ -79,9 +80,12 @@ export function flattenEntry(
     row['Content Type'] = contentType.name || contentType.sys.id;
   }
 
-  // Filter fields if specified
+  // Filter and order fields. When `fields` is provided, follow the user's
+  // chosen column order; otherwise fall back to the content type's order.
   const fieldsToProcess = fields && fields.length > 0
-    ? contentType.fields.filter(f => fields.includes(f.id))
+    ? (fields
+        .map(id => contentType.fields.find(f => f.id === id))
+        .filter((f): f is ContentType['fields'][number] => Boolean(f)))
     : contentType.fields;
 
   for (const field of fieldsToProcess) {
@@ -230,7 +234,8 @@ function formatLink(value: unknown): string {
 export function getColumnHeaders(
   contentType: ContentType,
   locales: string[],
-  includeContentTypeName = true
+  includeContentTypeName = true,
+  fields?: string[]
 ): string[] {
   const headers = [
     'Entry ID',
@@ -244,7 +249,13 @@ export function getColumnHeaders(
     headers.push('Content Type');
   }
 
-  for (const field of contentType.fields) {
+  const fieldsToInclude = fields && fields.length > 0
+    ? (fields
+        .map(id => contentType.fields.find(f => f.id === id))
+        .filter((f): f is ContentType['fields'][number] => Boolean(f)))
+    : contentType.fields;
+
+  for (const field of fieldsToInclude) {
     if (field.localized) {
       for (const locale of locales) {
         headers.push(`${field.name} (${locale})`);
