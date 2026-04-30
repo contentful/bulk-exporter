@@ -3,8 +3,8 @@
 A powerful Contentful App that allows you to export unlimited entries from any content type to CSV format, bypassing the 40-entry limitation of the Contentful web interface.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/bulk-entry-exporter)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/bulk-entry-exporter)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
 
 ## Features
 
@@ -38,8 +38,8 @@ A powerful Contentful App that allows you to export unlimited entries from any c
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/milescontentful/bulk-entry-exporter.git
-cd bulk-entry-exporter
+git clone https://github.com/milescontentful/Bulk-Export.git
+cd Bulk-Export
 ```
 
 2. **Install dependencies**
@@ -67,7 +67,7 @@ The app will be available at `http://localhost:5173`
 
 #### Option 1: Deploy to Vercel (Recommended)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/bulk-entry-exporter)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
 
 1. Click the button above or manually:
 ```bash
@@ -80,7 +80,7 @@ vercel --prod
 
 #### Option 2: Deploy to Netlify
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/bulk-entry-exporter)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
 
 1. Click the button above or manually:
 ```bash
@@ -354,7 +354,7 @@ MIT
 ## Support
 
 For issues or questions:
-- Open an issue on [GitHub](https://github.com/milescontentful/bulk-entry-exporter/issues)
+- Open an issue on [GitHub](https://github.com/milescontentful/Bulk-Export/issues)
 - Check the [Troubleshooting](#troubleshooting) section above
 
 ## Acknowledgments

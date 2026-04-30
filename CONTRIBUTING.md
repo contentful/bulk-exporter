@@ -12,7 +12,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/milescontentful/bulk-entry-exporter/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/milescontentful/Bulk-Export/issues)
 2. If not, create a new issue with:
    - Clear title and description
    - Steps to reproduce
@@ -73,8 +73,8 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/bulk-entry-exporter.git
-cd bulk-entry-exporter
+git clone https://github.com/YOUR_USERNAME/Bulk-Export.git
+cd Bulk-Export
 
 # Install dependencies
 npm install
