@@ -5,6 +5,60 @@ import { ExternalLinkIcon, ArrowUpIcon, ArrowDownIcon } from '@contentful/f36-ic
 type SortColumn = 'name' | 'contentType' | 'updated' | 'updatedBy' | 'status';
 type SortDirection = 'asc' | 'desc';
 
+interface SortableHeaderProps {
+  column: SortColumn;
+  label: string;
+  activeColumn: SortColumn | null;
+  direction: SortDirection;
+  onSort: (column: SortColumn) => void;
+}
+
+function SortableHeader({ column, label, activeColumn, direction, onSort }: SortableHeaderProps) {
+  const isActive = activeColumn === column;
+  const Icon = isActive && direction === 'desc' ? ArrowDownIcon : ArrowUpIcon;
+  return (
+    <Tooltip content={`Sort by ${label}${isActive ? ` (${direction === 'asc' ? 'ascending' : 'descending'})` : ''}`} placement="top">
+      <Flex
+        alignItems="center"
+        gap="spacing2Xs"
+        style={{
+          cursor: 'pointer',
+          userSelect: 'none',
+          padding: '2px 6px',
+          borderRadius: '3px',
+          backgroundColor: isActive ? 'var(--blue-100, rgba(13, 102, 208, 0.08))' : 'transparent',
+          transition: 'background-color 120ms ease',
+        }}
+        onClick={() => onSort(column)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSort(column);
+          }
+        }}
+      >
+        <span
+          style={{
+            fontWeight: isActive ? 600 : 500,
+            color: isActive ? 'var(--blue-600)' : 'inherit',
+          }}
+        >
+          {label}
+        </span>
+        <Icon
+          size="tiny"
+          style={{
+            opacity: isActive ? 1 : 0.35,
+            color: isActive ? 'var(--blue-600)' : 'currentColor',
+          }}
+        />
+      </Flex>
+    </Tooltip>
+  );
+}
+
 interface SearchResult {
   sys: {
     id: string;
@@ -148,7 +202,13 @@ export function ResultsList({
       const bv = accessor(b);
       if (av < bv) return -1;
       if (av > bv) return 1;
-      return 0;
+      // Tie-breaker: when primary values match (eg. all rows are the same
+      // content type), fall back to most-recently-updated first, then by id
+      // so the sort is deterministic and visibly reorders uniform data.
+      if (a.sys.updatedAt !== b.sys.updatedAt) {
+        return a.sys.updatedAt < b.sys.updatedAt ? 1 : -1;
+      }
+      return a.sys.id.localeCompare(b.sys.id);
     });
 
     return sortDirection === 'desc' ? sorted.reverse() : sorted;
@@ -269,37 +329,6 @@ export function ResultsList({
     return date.toISOString().split('T')[0]; // YYYY-MM-DD format
   };
 
-  const SortableHeader = ({ column, label }: { column: SortColumn; label: string }) => {
-    const isActive = sortColumn === column;
-    const Icon = isActive && sortDirection === 'desc' ? ArrowDownIcon : ArrowUpIcon;
-    return (
-      <Tooltip content={`Sort by ${label}`} placement="top">
-        <Flex
-          alignItems="center"
-          gap="spacing2Xs"
-          style={{ cursor: 'pointer', userSelect: 'none' }}
-          onClick={() => handleSortClick(column)}
-        >
-          <span
-            style={{
-              fontWeight: isActive ? 600 : undefined,
-              color: isActive ? 'var(--blue-600)' : undefined,
-            }}
-          >
-            {label}
-          </span>
-          <Icon
-            size="tiny"
-            style={{
-              opacity: isActive ? 1 : 0.3,
-              color: isActive ? 'var(--blue-600)' : undefined,
-            }}
-          />
-        </Flex>
-      </Tooltip>
-    );
-  };
-
   return (
     <Card data-results-list>
       <Stack flexDirection="column" spacing="spacingS">
@@ -362,19 +391,49 @@ export function ResultsList({
                 )}
               </Table.Cell>
               <Table.Cell>
-                <SortableHeader column="name" label="Name" />
+                <SortableHeader
+                  column="name"
+                  label="Name"
+                  activeColumn={sortColumn}
+                  direction={sortDirection}
+                  onSort={handleSortClick}
+                />
               </Table.Cell>
               <Table.Cell>
-                <SortableHeader column="contentType" label="Content Type" />
+                <SortableHeader
+                  column="contentType"
+                  label="Content Type"
+                  activeColumn={sortColumn}
+                  direction={sortDirection}
+                  onSort={handleSortClick}
+                />
               </Table.Cell>
               <Table.Cell>
-                <SortableHeader column="updated" label="Updated" />
+                <SortableHeader
+                  column="updated"
+                  label="Updated"
+                  activeColumn={sortColumn}
+                  direction={sortDirection}
+                  onSort={handleSortClick}
+                />
               </Table.Cell>
               <Table.Cell>
-                <SortableHeader column="updatedBy" label="Last updated by" />
+                <SortableHeader
+                  column="updatedBy"
+                  label="Last updated by"
+                  activeColumn={sortColumn}
+                  direction={sortDirection}
+                  onSort={handleSortClick}
+                />
               </Table.Cell>
               <Table.Cell>
-                <SortableHeader column="status" label="Status" />
+                <SortableHeader
+                  column="status"
+                  label="Status"
+                  activeColumn={sortColumn}
+                  direction={sortDirection}
+                  onSort={handleSortClick}
+                />
               </Table.Cell>
               <Table.Cell></Table.Cell>
             </Table.Row>
