@@ -6,12 +6,6 @@ A powerful Contentful App that allows you to export unlimited entries from any c
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
 
-## Quick Export
-
-![Quick Export Menu](./screenshots/quick-export-menu.png)
-
-Click the **Export** dropdown to instantly export in your preferred format with smart defaults, or use the **Output tab** for advanced customization (locales, fields, filename).
-
 ## Features
 
 ### Export Formats
