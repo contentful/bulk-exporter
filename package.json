@@ -1,16 +1,16 @@
 {
-  "name": "bulk-entry-exporter",
+  "name": "se-bulk-exporter",
   "version": "1.0.0",
-  "description": "Export unlimited Contentful entries to CSV with advanced filtering and selection",
-  "author": "Miles Stauffer",
+  "description": "Export unlimited Contentful entries to CSV, JSON, XLSX, XML, or YAML with advanced filtering, smart field selection, and reorderable columns",
+  "author": "Contentful Solution Engineering",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/milescontentful/bulk-entry-exporter.git"
+    "url": "https://github.com/contentful-labs/se-bulk-exporter.git"
   },
-  "homepage": "https://github.com/milescontentful/bulk-entry-exporter#readme",
+  "homepage": "https://github.com/contentful-labs/se-bulk-exporter#readme",
   "bugs": {
-    "url": "https://github.com/milescontentful/bulk-entry-exporter/issues"
+    "url": "https://github.com/contentful-labs/se-bulk-exporter/issues"
   },
   "keywords": [
     "contentful",

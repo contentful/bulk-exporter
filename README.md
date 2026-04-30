@@ -14,8 +14,8 @@ After clicking, choose the space you want to install it into and follow Contentf
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Install in Contentful](https://img.shields.io/badge/Install-Contentful-2478CC?logo=contentful&logoColor=white)](https://app.contentful.com/deeplink?link=apps&id=79UvsbUCbJnMSGgk7GxrbN)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/contentful-labs/se-bulk-exporter)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/contentful-labs/se-bulk-exporter)
 
 ## Features
 
@@ -65,8 +65,8 @@ After clicking, choose the space you want to install it into and follow Contentf
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/milescontentful/Bulk-Export.git
-cd Bulk-Export
+git clone https://github.com/contentful-labs/se-bulk-exporter.git
+cd se-bulk-exporter
 ```
 
 2. **Install dependencies**
@@ -146,7 +146,7 @@ npm run upload -- --organization-id YOUR_ORG_ID --definition-id YOUR_APP_DEF_ID 
 
 #### Option 2: Deploy to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/milescontentful/Bulk-Export)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/contentful-labs/se-bulk-exporter)
 
 1. Click the button above or manually:
 ```bash
@@ -159,7 +159,7 @@ vercel --prod
 
 #### Option 2: Deploy to Netlify
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/milescontentful/Bulk-Export)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/contentful-labs/se-bulk-exporter)
 
 1. Click the button above or manually:
 ```bash
@@ -481,7 +481,7 @@ MIT
 ## Support
 
 For issues or questions:
-- Open an issue on [GitHub](https://github.com/milescontentful/Bulk-Export/issues)
+- Open an issue on [GitHub](https://github.com/contentful-labs/se-bulk-exporter/issues)
 - Check the [Troubleshooting](#troubleshooting) section above
 
 ## Acknowledgments
