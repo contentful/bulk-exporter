@@ -100,6 +100,7 @@ export function ExportForm({
 }: ExportFormProps) {
   const initialSpacePrefs = useMemo(() => getSpacePreferences(spaceId), [spaceId]);
 
+  const [activeTab, setActiveTab] = useState<'filter' | 'taxonomy' | 'advanced' | 'output'>('filter');
   const [contentTypeId, setContentTypeId] = useState('');
   const [selectedLocales, setSelectedLocales] = useState<string[]>(
     availableLocales.map(l => l.code)
@@ -340,7 +341,7 @@ export function ExportForm({
 
   return (
     <Form onSubmit={handleSubmit}>
-      <Tabs defaultTab="filter">
+      <Tabs currentTab={activeTab} onTabChange={(id) => setActiveTab(id as typeof activeTab)}>
         <Tabs.List>
           <Tabs.Tab panelId="filter">Filter</Tabs.Tab>
           {(availableTags.length > 0 || availableConcepts.length > 0) && (
@@ -1140,41 +1141,51 @@ export function ExportForm({
             </Button>
           </Tooltip>
 
-          <Tooltip content="Quick export with smart defaults (all locales, all fields). Or use Output tab for full control" placement="top">
-            <Menu>
-              <Menu.Trigger>
-                <Button
-                  variant="primary"
-                  isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
-                  isLoading={isExporting}
-                  endIcon={<ChevronDownIcon />}
-                >
-                  Export
-                </Button>
-              </Menu.Trigger>
-              <Menu.List>
-                <Menu.Item onClick={() => handleQuickExport('csv')}>
-                  CSV
-                </Menu.Item>
-                <Menu.Item onClick={() => handleQuickExport('json')}>
-                  JSON
-                </Menu.Item>
-                <Menu.Item onClick={() => handleQuickExport('xlsx')}>
-                  XLSX
-                </Menu.Item>
-                <Menu.Item onClick={() => handleQuickExport('xml')}>
-                  XML
-                </Menu.Item>
-                <Menu.Item onClick={() => handleQuickExport('yaml')}>
-                  YAML
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item onClick={handleSubmit}>
-                  Advanced (use Output tab)
-                </Menu.Item>
-              </Menu.List>
-            </Menu>
-          </Tooltip>
+          {activeTab === 'output' ? (
+            <Tooltip
+              content={`Run the export using your Output tab settings (${getFormatName(format)}, ${selectedLocales.length} locale${selectedLocales.length === 1 ? '' : 's'}, ${selectedFields.length === 0 ? 'all' : selectedFields.length} field${selectedFields.length === 1 ? '' : 's'})`}
+              placement="top"
+            >
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleSubmit}
+                isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
+                isLoading={isExporting}
+              >
+                Run Export ({getFormatName(format)})
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip
+              content="Quick export with smart defaults (all locales, all fields). Switch to the Output tab for full control"
+              placement="top"
+            >
+              <Menu>
+                <Menu.Trigger>
+                  <Button
+                    variant="primary"
+                    isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
+                    isLoading={isExporting}
+                    endIcon={<ChevronDownIcon />}
+                  >
+                    Export
+                  </Button>
+                </Menu.Trigger>
+                <Menu.List>
+                  <Menu.Item onClick={() => handleQuickExport('csv')}>CSV</Menu.Item>
+                  <Menu.Item onClick={() => handleQuickExport('json')}>JSON</Menu.Item>
+                  <Menu.Item onClick={() => handleQuickExport('xlsx')}>XLSX</Menu.Item>
+                  <Menu.Item onClick={() => handleQuickExport('xml')}>XML</Menu.Item>
+                  <Menu.Item onClick={() => handleQuickExport('yaml')}>YAML</Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item onClick={() => setActiveTab('output')}>
+                    Customize in Output tab
+                  </Menu.Item>
+                </Menu.List>
+              </Menu>
+            </Tooltip>
+          )}
           
           {(isSearching || isExporting) && (
             <Stack alignItems="center" spacing="spacingXs" flexDirection="row">
