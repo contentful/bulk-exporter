@@ -822,9 +822,9 @@ export function ExportForm({
             </Button>
           </Tooltip>
 
-          <Menu>
-            <Menu.Trigger>
-              <Tooltip content="Quick export with smart defaults (all locales, all fields). Or use Output tab for full control" placement="top">
+          <Tooltip content="Quick export with smart defaults (all locales, all fields). Or use Output tab for full control" placement="top">
+            <Menu>
+              <Menu.Trigger>
                 <Button
                   variant="primary"
                   isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
@@ -833,30 +833,30 @@ export function ExportForm({
                 >
                   Export
                 </Button>
-              </Tooltip>
-            </Menu.Trigger>
-            <Menu.List>
-              <Menu.Item onClick={() => handleQuickExport('csv')}>
-                Export as CSV
-              </Menu.Item>
-              <Menu.Item onClick={() => handleQuickExport('json')}>
-                Export as JSON
-              </Menu.Item>
-              <Menu.Item onClick={() => handleQuickExport('xlsx')}>
-                Export as XLSX
-              </Menu.Item>
-              <Menu.Item onClick={() => handleQuickExport('xml')}>
-                Export as XML
-              </Menu.Item>
-              <Menu.Item onClick={() => handleQuickExport('yaml')}>
-                Export as YAML
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item onClick={handleSubmit}>
-                Advanced Export (use Output tab settings)
-              </Menu.Item>
-            </Menu.List>
-          </Menu>
+              </Menu.Trigger>
+              <Menu.List>
+                <Menu.Item onClick={() => handleQuickExport('csv')}>
+                  CSV
+                </Menu.Item>
+                <Menu.Item onClick={() => handleQuickExport('json')}>
+                  JSON
+                </Menu.Item>
+                <Menu.Item onClick={() => handleQuickExport('xlsx')}>
+                  XLSX
+                </Menu.Item>
+                <Menu.Item onClick={() => handleQuickExport('xml')}>
+                  XML
+                </Menu.Item>
+                <Menu.Item onClick={() => handleQuickExport('yaml')}>
+                  YAML
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item onClick={handleSubmit}>
+                  Advanced (use Output tab)
+                </Menu.Item>
+              </Menu.List>
+            </Menu>
+          </Tooltip>
           
           {(isSearching || isExporting) && (
             <Stack alignItems="center" spacing="spacingXs" flexDirection="row">
