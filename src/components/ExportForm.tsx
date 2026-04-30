@@ -15,8 +15,9 @@ import {
   Spinner,
   Badge,
   Tooltip,
+  Menu,
 } from '@contentful/f36-components';
-import { PlusIcon, DeleteIcon, FilterIcon, InfoCircleIcon } from '@contentful/f36-icons';
+import { PlusIcon, DeleteIcon, FilterIcon, InfoCircleIcon, ChevronDownIcon } from '@contentful/f36-icons';
 import type { ContentType } from '../lib/flatten';
 import type { EntryStatus, FieldFilter } from '../lib/queryBuilder';
 import type { ExportFormat } from '../lib/exportFormats';
@@ -51,6 +52,7 @@ export interface ExportFormProps {
   onSubmit: (data: ExportFormData) => void;
   onEstimate: (data: ExportFormData) => void;
   onSearch: (data: ExportFormData) => void;
+  onQuickExport?: (data: ExportFormData, format: ExportFormat) => void;
   isExporting: boolean;
   isSearching: boolean;
   estimatedCount: number | null;
@@ -64,6 +66,7 @@ export function ExportForm({
   onSubmit,
   onEstimate,
   onSearch,
+  onQuickExport,
   isExporting,
   isSearching,
   estimatedCount,
@@ -180,6 +183,20 @@ export function ExportForm({
     const updated = [...fieldFilters];
     updated[index] = { ...updated[index], [key]: value };
     setFieldFilters(updated);
+  };
+
+  const handleQuickExport = (selectedFormat: ExportFormat) => {
+    if (onQuickExport) {
+      // Quick export uses smart defaults
+      const quickExportData: ExportFormData = {
+        ...formData,
+        locales: availableLocales.map(l => l.code), // All locales
+        fields: undefined, // All fields
+        customFilename: undefined, // Auto-generated filename
+        format: selectedFormat,
+      };
+      onQuickExport(quickExportData, selectedFormat);
+    }
   };
 
   return (
@@ -805,16 +822,41 @@ export function ExportForm({
             </Button>
           </Tooltip>
 
-          <Tooltip content={`Download all matching entries as a ${getFormatName(format)} file. Large exports may take several minutes`} placement="top">
-            <Button
-              type="submit"
-              variant="primary"
-              isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
-              isLoading={isExporting}
-            >
-              Export as {format.toUpperCase()}
-            </Button>
-          </Tooltip>
+          <Menu>
+            <Menu.Trigger>
+              <Tooltip content="Quick export with smart defaults (all locales, all fields). Or use Output tab for full control" placement="top">
+                <Button
+                  variant="primary"
+                  isDisabled={selectedLocales.length === 0 || isExporting || isSearching}
+                  isLoading={isExporting}
+                  endIcon={<ChevronDownIcon />}
+                >
+                  Export
+                </Button>
+              </Tooltip>
+            </Menu.Trigger>
+            <Menu.List>
+              <Menu.Item onClick={() => handleQuickExport('csv')}>
+                Export as CSV
+              </Menu.Item>
+              <Menu.Item onClick={() => handleQuickExport('json')}>
+                Export as JSON
+              </Menu.Item>
+              <Menu.Item onClick={() => handleQuickExport('xlsx')}>
+                Export as XLSX
+              </Menu.Item>
+              <Menu.Item onClick={() => handleQuickExport('xml')}>
+                Export as XML
+              </Menu.Item>
+              <Menu.Item onClick={() => handleQuickExport('yaml')}>
+                Export as YAML
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item onClick={handleSubmit}>
+                Advanced Export (use Output tab settings)
+              </Menu.Item>
+            </Menu.List>
+          </Menu>
           
           {(isSearching || isExporting) && (
             <Stack alignItems="center" spacing="spacingXs" flexDirection="row">

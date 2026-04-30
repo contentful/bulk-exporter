@@ -407,6 +407,7 @@ const Page = () => {
         onSubmit={handleExport}
         onEstimate={handleEstimate}
         onSearch={handleSearch}
+        onQuickExport={handleExport}
         isExporting={isExporting}
         isSearching={isSearching}
         estimatedCount={estimatedCount}
