@@ -1,5 +1,9 @@
-import { Table, Card, Stack, Text, Badge, Button, Spinner, Checkbox, Tooltip } from '@contentful/f36-components';
-import { ExternalLinkIcon } from '@contentful/f36-icons';
+import { useState, useMemo } from 'react';
+import { Table, Card, Stack, Text, Badge, Button, Spinner, Checkbox, Tooltip, Flex } from '@contentful/f36-components';
+import { ExternalLinkIcon, ArrowUpIcon, ArrowDownIcon } from '@contentful/f36-icons';
+
+type SortColumn = 'name' | 'contentType' | 'updated' | 'updatedBy' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 interface SearchResult {
   sys: {
@@ -75,6 +79,18 @@ export function ResultsList({
   environmentId = 'master',
   isExporting = false,
 }: ResultsListProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSortClick = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
   if (loading && results.length === 0) {
     return (
       <Card padding="large">
@@ -181,6 +197,69 @@ export function ResultsList({
     return date.toISOString().split('T')[0]; // YYYY-MM-DD format
   };
 
+  const sortedResults = useMemo(() => {
+    if (!sortColumn) return results;
+
+    const accessor = (entry: SearchResult): string => {
+      switch (sortColumn) {
+        case 'name':
+          return getTitle(entry).toLowerCase();
+        case 'contentType':
+          return getContentTypeName(entry).toLowerCase();
+        case 'updated':
+          return entry.sys.updatedAt;
+        case 'updatedBy':
+          return getLastUpdatedBy(entry).toLowerCase();
+        case 'status':
+          return getStatus(entry);
+      }
+    };
+
+    const sorted = [...results].sort((a, b) => {
+      const av = accessor(a);
+      const bv = accessor(b);
+      if (av < bv) return -1;
+      if (av > bv) return 1;
+      return 0;
+    });
+
+    return sortDirection === 'desc' ? sorted.reverse() : sorted;
+    // getTitle/getContentTypeName/etc. close over props but are stable for the
+    // same `results` reference, so depending on those is sufficient
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, sortColumn, sortDirection, contentTypeMap, userMap]);
+
+  const SortableHeader = ({ column, label }: { column: SortColumn; label: string }) => {
+    const isActive = sortColumn === column;
+    const Icon = isActive && sortDirection === 'desc' ? ArrowDownIcon : ArrowUpIcon;
+    return (
+      <Tooltip content={`Sort by ${label}`} placement="top">
+        <Flex
+          alignItems="center"
+          gap="spacing2Xs"
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+          onClick={() => handleSortClick(column)}
+        >
+          <span
+            style={{
+              fontWeight: isActive ? 600 : undefined,
+              color: isActive ? 'var(--blue-600)' : undefined,
+            }}
+          >
+            {label}
+          </span>
+          <Icon
+            size="tiny"
+            style={{
+              opacity: isActive ? 1 : 0.3,
+              color: isActive ? 'var(--blue-600)' : undefined,
+            }}
+          />
+        </Flex>
+      </Tooltip>
+    );
+  };
+
   return (
     <Card data-results-list>
       <Stack flexDirection="column" spacing="spacingS">
@@ -242,16 +321,26 @@ export function ResultsList({
                   />
                 )}
               </Table.Cell>
-              <Table.Cell>Name</Table.Cell>
-              <Table.Cell>Content Type</Table.Cell>
-              <Table.Cell>Updated</Table.Cell>
-              <Table.Cell>Last updated by</Table.Cell>
-              <Table.Cell>Status</Table.Cell>
+              <Table.Cell>
+                <SortableHeader column="name" label="Name" />
+              </Table.Cell>
+              <Table.Cell>
+                <SortableHeader column="contentType" label="Content Type" />
+              </Table.Cell>
+              <Table.Cell>
+                <SortableHeader column="updated" label="Updated" />
+              </Table.Cell>
+              <Table.Cell>
+                <SortableHeader column="updatedBy" label="Last updated by" />
+              </Table.Cell>
+              <Table.Cell>
+                <SortableHeader column="status" label="Status" />
+              </Table.Cell>
               <Table.Cell></Table.Cell>
             </Table.Row>
           </Table.Head>
           <Table.Body>
-            {results.map((entry) => {
+            {sortedResults.map((entry) => {
               const status = getStatus(entry);
               return (
                 <Table.Row key={entry.sys.id}>
