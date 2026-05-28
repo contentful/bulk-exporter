@@ -46,7 +46,7 @@
     "xml-js": "^1.6.11"
   },
   "devDependencies": {
-    "@contentful/app-scripts": "^1.26.0",
+    "@contentful/app-scripts": "^3.0.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
