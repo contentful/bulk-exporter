@@ -18,6 +18,7 @@ import {
   Menu,
   Subheading,
   TextLink,
+  Text,
 } from '@contentful/f36-components';
 import {
   PlusIcon,
@@ -26,6 +27,7 @@ import {
   InfoCircleIcon,
   ChevronDownIcon,
   SearchIcon,
+  DoneIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   CloseIcon,
@@ -109,6 +111,8 @@ export function ExportForm({
   const [activePreset, setActivePreset] = useState<FieldPreset>('essentials');
   const [fieldSearch, setFieldSearch] = useState('');
   const [search, setSearch] = useState('');
+  const [contentTypeSearch, setContentTypeSearch] = useState('');
+  const [isContentTypeMenuOpen, setIsContentTypeMenuOpen] = useState(false);
   const [status, setStatus] = useState<EntryStatus>('any');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
@@ -128,6 +132,26 @@ export function ExportForm({
     () => contentTypes.find(ct => ct.sys.id === contentTypeId) || null,
     [contentTypes, contentTypeId]
   );
+
+  const filteredContentTypes = useMemo(() => {
+    const normalizedSearch = contentTypeSearch.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return contentTypes;
+    }
+
+    return contentTypes.filter((ct) => {
+      const name = ct.name?.toLowerCase() ?? '';
+      const id = ct.sys.id.toLowerCase();
+      return name.includes(normalizedSearch) || id.includes(normalizedSearch);
+    });
+  }, [contentTypes, contentTypeSearch]);
+
+  const selectContentType = (nextContentTypeId: string) => {
+    setContentTypeId(nextContentTypeId);
+    setContentTypeSearch('');
+    setIsContentTypeMenuOpen(false);
+  };
 
   // When content type changes: load saved field prefs or apply smart defaults
   useEffect(() => {
@@ -340,8 +364,9 @@ export function ExportForm({
   };
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <Tabs currentTab={activeTab} onTabChange={(id) => setActiveTab(id as typeof activeTab)}>
+    <Form onSubmit={handleSubmit} style={{ width: '100%' }}>
+      <Box style={{ width: '100%', maxWidth: '1040px' }}>
+        <Tabs currentTab={activeTab} onTabChange={(id) => setActiveTab(id as typeof activeTab)}>
         <Tabs.List>
           <Tabs.Tab panelId="filter">Filter</Tabs.Tab>
           {(availableTags.length > 0 || availableConcepts.length > 0) && (
@@ -352,54 +377,119 @@ export function ExportForm({
         </Tabs.List>
 
         <Tabs.Panel id="filter">
-          <Box marginTop="spacingM">
-            <Stack flexDirection="column" spacing="spacingM">
+          <Box marginTop="spacingM" style={{ width: '100%' }}>
+            <Stack flexDirection="column" spacing="spacingM" alignItems="stretch" style={{ width: '100%' }}>
               {/* Horizontal search bar - Contentful style */}
-              <Flex gap="spacingS" alignItems="center">
-                <Tooltip content="Select a specific content type to export, or choose 'Any' to search across all content types" placement="top">
-                  <Box style={{ width: '200px' }}>
-                    <Select
-                      value={contentTypeId}
-                      onChange={(e) => setContentTypeId(e.target.value)}
-                      isDisabled={isExporting}
+              <Flex
+                gap="spacingS"
+                alignItems="flex-start"
+                flexWrap="wrap"
+                style={{ width: '100%', maxWidth: '920px' }}
+              >
+                <FormControl style={{ width: '300px', marginBottom: 0 }}>
+                  <FormControl.Label>Content type</FormControl.Label>
+                  <Menu
+                      isOpen={isContentTypeMenuOpen}
+                      onOpen={() => setIsContentTypeMenuOpen(true)}
+                      onClose={() => {
+                        setIsContentTypeMenuOpen(false);
+                        setContentTypeSearch('');
+                      }}
+                      closeOnSelect={false}
                     >
-                      <Select.Option value="">Any</Select.Option>
-                      {contentTypes.map((ct) => (
-                        <Select.Option key={ct.sys.id} value={ct.sys.id}>
-                          {ct.sys.id}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Box>
-                </Tooltip>
+                      <Menu.Trigger>
+                        <Button
+                          variant="secondary"
+                          endIcon={<ChevronDownIcon />}
+                          isDisabled={isExporting}
+                          style={{ width: '100%', justifyContent: 'space-between' }}
+                        >
+                          {selectedContentType?.name || 'All content types'}
+                        </Button>
+                      </Menu.Trigger>
+                      <Menu.List style={{ width: '360px', maxHeight: '420px', overflowY: 'auto' }}>
+                        <Box padding="spacingS">
+                          <TextInput
+                            aria-label="Search content types"
+                            placeholder="Search content types"
+                            icon={<SearchIcon />}
+                            value={contentTypeSearch}
+                            onChange={(event) => setContentTypeSearch(event.target.value)}
+                            autoFocus
+                          />
+                        </Box>
+                        <Menu.Item
+                          icon={!contentTypeId ? <DoneIcon /> : undefined}
+                          onClick={() => selectContentType('')}
+                        >
+                          <Stack flexDirection="column" spacing="spacing2Xs" alignItems="flex-start">
+                            <Text fontWeight="fontWeightDemiBold">All content types</Text>
+                            <Text fontSize="fontSizeS" fontColor="gray600">
+                              Search and export entries across the whole space.
+                            </Text>
+                          </Stack>
+                        </Menu.Item>
+                        {filteredContentTypes.length === 0 ? (
+                          <Box padding="spacingM">
+                            <Text fontColor="gray600">No content types match your search.</Text>
+                          </Box>
+                        ) : (
+                          filteredContentTypes.map((ct) => (
+                            <Menu.Item
+                              key={ct.sys.id}
+                              icon={ct.sys.id === contentTypeId ? <DoneIcon /> : undefined}
+                              onClick={() => selectContentType(ct.sys.id)}
+                            >
+                              <Stack flexDirection="column" spacing="spacing2Xs" alignItems="flex-start">
+                                <Text fontWeight="fontWeightDemiBold">{ct.name || ct.sys.id}</Text>
+                                <Text fontSize="fontSizeS" fontColor="gray600">
+                                  {ct.sys.id}
+                                </Text>
+                              </Stack>
+                            </Menu.Item>
+                          ))
+                        )}
+                      </Menu.List>
+                    </Menu>
+                  <FormControl.HelpText>
+                    {selectedContentType?.sys.id || 'Exports can include every content type.'}
+                  </FormControl.HelpText>
+                </FormControl>
                 
                 <Tooltip content="Full-text search across all entry fields. Leave empty to export all entries matching other filters" placement="top">
-                  <Box style={{ flexGrow: 1 }}>
+                  <FormControl style={{ flex: '1 1 320px', marginBottom: 0 }}>
+                    <FormControl.Label>Search</FormControl.Label>
                     <TextInput
-                      placeholder="Type to search for entries"
+                      placeholder="Search entries"
+                      icon={<SearchIcon />}
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       isDisabled={isExporting}
                     />
-                  </Box>
+                    <FormControl.HelpText>
+                      Searches matching entry fields in the selected scope.
+                    </FormControl.HelpText>
+                  </FormControl>
                 </Tooltip>
                 
-                <Tooltip content="Show advanced filters for status, dates, and sorting options" placement="top">
-                  <Button
-                    variant={showFilters ? 'primary' : 'secondary'}
-                    startIcon={<FilterIcon />}
-                    onClick={() => setShowFilters(!showFilters)}
-                    isDisabled={isExporting}
-                  >
-                    Filter
-                    {activeFilters.length > 0 && ` (${activeFilters.length})`}
-                  </Button>
-                </Tooltip>
+                <Box style={{ paddingTop: '26px' }}>
+                  <Tooltip content="Show advanced filters for status, dates, and sorting options" placement="top">
+                    <Button
+                      variant={showFilters ? 'primary' : 'secondary'}
+                      startIcon={<FilterIcon />}
+                      onClick={() => setShowFilters(!showFilters)}
+                      isDisabled={isExporting}
+                    >
+                      Filter
+                      {activeFilters.length > 0 && ` (${activeFilters.length})`}
+                    </Button>
+                  </Tooltip>
+                </Box>
               </Flex>
 
               {/* Active filter pills */}
               {activeFilters.length > 0 && (
-                <Flex gap="spacingXs" flexWrap="wrap">
+                <Flex gap="spacingXs" flexWrap="wrap" style={{ width: '100%' }}>
                   {activeFilters.map((filter, index) => (
                     <Tooltip key={index} content="Click to remove this filter" placement="top">
                       <Badge
@@ -421,9 +511,11 @@ export function ExportForm({
                   style={{
                     backgroundColor: 'var(--gray-100)',
                     borderRadius: '4px',
+                    width: '100%',
+                    maxWidth: '840px',
                   }}
                 >
-                  <Stack flexDirection="column" spacing="spacingM">
+                  <Stack flexDirection="column" spacing="spacingM" alignItems="stretch" style={{ width: '100%' }}>
                     <FormControl>
                       <Flex alignItems="center" gap="spacingXs">
                         <FormControl.Label>Status</FormControl.Label>
@@ -442,7 +534,7 @@ export function ExportForm({
                         value={status}
                         onChange={(e) => setStatus(e.target.value as EntryStatus)}
                       >
-                        <Stack flexDirection="row" spacing="spacingS" flexWrap="wrap">
+                        <Stack flexDirection="row" spacing="spacingS" flexWrap="wrap" alignItems="center">
                           <Radio value="any" isDisabled={isExporting}>Any</Radio>
                           <Radio value="published" isDisabled={isExporting}>Published</Radio>
                           <Radio value="draft" isDisabled={isExporting}>Draft</Radio>
@@ -452,7 +544,7 @@ export function ExportForm({
                       </Radio.Group>
                     </FormControl>
 
-                    <FormControl>
+                    <FormControl style={{ maxWidth: '280px' }}>
                       <Flex alignItems="center" gap="spacingXs">
                         <FormControl.Label>Sort By</FormControl.Label>
                         <Tooltip content="Choose the order for your export. Sorting by creation date is most efficient for large exports" placement="right">
@@ -477,7 +569,7 @@ export function ExportForm({
                       </Select>
                     </FormControl>
 
-                    <Flex gap="spacingM" flexDirection="row">
+                    <Flex gap="spacingM" flexDirection="row" alignItems="flex-start" flexWrap="wrap">
                       <Box style={{ flex: 1 }}>
                         <FormControl>
                           <Flex alignItems="center" gap="spacingXs">
@@ -1116,8 +1208,14 @@ export function ExportForm({
         </Tabs.Panel>
       </Tabs>
 
-      <Stack flexDirection="column" spacing="spacingM" marginTop="spacingL">
-        <Stack flexDirection="row" spacing="spacingS" alignItems="center">
+      <Stack
+        flexDirection="column"
+        spacing="spacingM"
+        marginTop="spacingL"
+        alignItems="stretch"
+        style={{ width: '100%', maxWidth: '920px' }}
+      >
+        <Stack flexDirection="row" spacing="spacingS" alignItems="center" flexWrap="wrap">
           <Tooltip content="View a preview of matching entries before exporting. Useful for verifying your filters" placement="top">
             <Button
               type="button"
@@ -1203,6 +1301,7 @@ export function ExportForm({
           </FormControl.HelpText>
         )}
       </Stack>
+      </Box>
     </Form>
   );
 }

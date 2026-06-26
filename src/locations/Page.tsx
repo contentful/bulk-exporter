@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Heading, Paragraph, Stack, Box, Note, Spinner } from '@contentful/f36-components';
+import { Heading, Paragraph, Stack, Box, Note, Spinner, Flex, Text } from '@contentful/f36-components';
 import { useSDK, useCMA } from '@contentful/react-apps-toolkit';
 import type { PageAppSDK } from '@contentful/app-sdk';
 import { ExportForm, type ExportFormData } from '../components/ExportForm';
@@ -109,7 +109,9 @@ const Page = () => {
           sdk.cma.locale.getMany({ query: { limit: 100 } }),
         ]);
 
-        const ctItems = ctResponse.items as unknown as ContentType[];
+        const ctItems = (ctResponse.items as unknown as ContentType[]).sort((a, b) =>
+          (a.name || a.sys.id).localeCompare(b.name || b.sys.id)
+        );
         setContentTypes(ctItems);
         
         // Build content type map with names and display fields (for UI)
@@ -416,43 +418,56 @@ const Page = () => {
 
   if (loading) {
     return (
-      <Box style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-        <Stack padding="spacingL">
-          <Note variant="primary" title="Loading">
-            <Stack alignItems="center" spacing="spacingS">
-              <Spinner />
-              <Paragraph>Loading content types, locales, and tags...</Paragraph>
-            </Stack>
-          </Note>
-        </Stack>
-      </Box>
+      <Flex
+        alignItems="center"
+        justifyContent="center"
+        flexDirection="column"
+        gap="spacingS"
+        style={{ minHeight: '60vh' }}
+      >
+        <Spinner />
+        <Text fontColor="gray600">Loading content types, locales, and tags...</Text>
+      </Flex>
     );
   }
 
   return (
     <Box style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-      <Stack flexDirection="column" spacing="spacingL" padding="spacingL">
-        <Heading>Bulk Entry CSV Exporter</Heading>
-        
-        <Paragraph>
-          Export entries from a content type to CSV. This tool bypasses the 40-entry
-          web UI limitation by paginating the Content Management API directly.
-        </Paragraph>
+      <Stack
+        flexDirection="column"
+        alignItems="stretch"
+        spacing="spacingL"
+        padding="spacingL"
+        style={{ width: '100%' }}
+      >
+        <Box style={{ width: '100%', maxWidth: '1040px' }}>
+          <Heading marginBottom="spacingS">Bulk Exporter</Heading>
+          <Paragraph marginBottom="none">
+            Search, preview, and export Contentful entries across one content type or the whole
+            space. Use filters to narrow the result set, then export matching or selected entries.
+          </Paragraph>
+        </Box>
+
+        {contentTypes.length === 0 && (
+          <Note variant="warning" title="No content types found">
+            Add content types to this space before running an export.
+          </Note>
+        )}
 
         <ExportForm
-        contentTypes={contentTypes}
-        availableLocales={locales}
-        availableTags={tags}
-        availableConcepts={concepts}
-        onSubmit={handleExport}
-        onEstimate={handleEstimate}
-        onSearch={handleSearch}
-        onQuickExport={handleExport}
-        isExporting={isExporting}
-        isSearching={isSearching}
-        estimatedCount={estimatedCount}
-        spaceId={sdk.ids.space}
-      />
+          contentTypes={contentTypes}
+          availableLocales={locales}
+          availableTags={tags}
+          availableConcepts={concepts}
+          onSubmit={handleExport}
+          onEstimate={handleEstimate}
+          onSearch={handleSearch}
+          onQuickExport={handleExport}
+          isExporting={isExporting}
+          isSearching={isSearching}
+          estimatedCount={estimatedCount}
+          spaceId={sdk.ids.space}
+        />
 
         <ResultsList
           results={searchResults}
