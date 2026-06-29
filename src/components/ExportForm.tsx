@@ -742,8 +742,13 @@ export function ExportForm({
         )}
 
         <Tabs.Panel id="advanced">
-          <Box marginTop="spacingM">
-            <Stack flexDirection="column" spacing="spacingS">
+          <Box marginTop="spacingM" style={{ width: '100%' }}>
+            <Stack
+              flexDirection="column"
+              spacing="spacingS"
+              alignItems="flex-start"
+              style={{ width: '100%', maxWidth: '760px' }}
+            >
               <FormControl marginBottom="spacingXs">
                 <Flex alignItems="center" gap="spacingXs">
                   <FormControl.Label>Field-Level Filters</FormControl.Label>
@@ -769,9 +774,10 @@ export function ExportForm({
                   style={{
                     backgroundColor: 'var(--gray-100)',
                     borderRadius: '4px',
+                    width: '100%',
                   }}
                 >
-                  <Flex gap="spacingXs" alignItems="center">
+                  <Flex gap="spacingXs" alignItems="center" flexWrap="wrap">
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Select
                         value={filter.fieldId}
