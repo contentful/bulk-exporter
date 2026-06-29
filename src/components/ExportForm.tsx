@@ -855,86 +855,87 @@ export function ExportForm({
         </Tabs.Panel>
 
         <Tabs.Panel id="output">
-          <Box marginTop="spacingM">
-            <Flex gap="spacingL" flexDirection="row" alignItems="flex-start">
-              <Box style={{ flex: 1 }}>
-                <FormControl>
-                  <Flex alignItems="center" gap="spacingXs">
-                    <FormControl.Label>Locales</FormControl.Label>
-                    <Tooltip content="Select which language versions to include in your export. Each locale will create separate columns in the CSV" placement="right">
-                      <IconButton
-                        variant="transparent"
-                        icon={<InfoCircleIcon />}
-                        aria-label="Help"
-                        size="small"
-                        style={{ padding: 0, minHeight: 'auto' }}
-                      />
-                    </Tooltip>
-                  </Flex>
-                  <FormControl.HelpText>
-                    Select which locales to include
-                  </FormControl.HelpText>
-                  <Checkbox.Group
-                    value={selectedLocales}
-                    onChange={(e) => {
-                      const target = e.target as HTMLInputElement;
-                      const value = target.value;
-                      setSelectedLocales((prev) =>
-                        target.checked
-                          ? [...prev, value]
-                          : prev.filter((v) => v !== value)
-                      );
-                    }}
-                  >
-                    {availableLocales.map((locale) => (
-                      <Checkbox
-                        key={locale.code}
-                        value={locale.code}
-                        isChecked={selectedLocales.includes(locale.code)}
-                        isDisabled={isExporting}
-                      >
-                        {locale.name} ({locale.code})
-                      </Checkbox>
-                    ))}
-                  </Checkbox.Group>
-                </FormControl>
-              </Box>
-
-              <Box style={{ flex: 1 }}>
-                <Stack flexDirection="column" spacing="spacingM">
-                  <FormControl>
-                    <Flex alignItems="center" gap="spacingXs">
-                      <FormControl.Label>Export Format</FormControl.Label>
-                      <Tooltip content="Choose the file format for your export. CSV for spreadsheets, JSON for APIs, XLSX for Excel, XML for enterprise systems, YAML for configs" placement="right">
-                        <IconButton
-                          variant="transparent"
-                          icon={<InfoCircleIcon />}
-                          aria-label="Help"
-                          size="small"
-                          style={{ padding: 0, minHeight: 'auto' }}
-                        />
-                      </Tooltip>
-                    </Flex>
-                    <Select
-                      value={format}
-                      onChange={(e) => setFormat(e.target.value as ExportFormat)}
+          <Box marginTop="spacingM" style={{ width: '100%' }}>
+            <Stack
+              flexDirection="column"
+              spacing="spacingM"
+              alignItems="flex-start"
+              style={{ width: '100%', maxWidth: '760px' }}
+            >
+              <FormControl style={{ width: '100%' }}>
+                <Flex alignItems="center" gap="spacingXs">
+                  <FormControl.Label>Locales</FormControl.Label>
+                  <Tooltip content="Select which language versions to include in your export. Each locale will create separate columns in the CSV" placement="right">
+                    <IconButton
+                      variant="transparent"
+                      icon={<InfoCircleIcon />}
+                      aria-label="Help"
+                      size="small"
+                      style={{ padding: 0, minHeight: 'auto' }}
+                    />
+                  </Tooltip>
+                </Flex>
+                <FormControl.HelpText>
+                  Select which locales to include
+                </FormControl.HelpText>
+                <Checkbox.Group
+                  value={selectedLocales}
+                  onChange={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    const value = target.value;
+                    setSelectedLocales((prev) =>
+                      target.checked
+                        ? [...prev, value]
+                        : prev.filter((v) => v !== value)
+                    );
+                  }}
+                >
+                  {availableLocales.map((locale) => (
+                    <Checkbox
+                      key={locale.code}
+                      value={locale.code}
+                      isChecked={selectedLocales.includes(locale.code)}
                       isDisabled={isExporting}
                     >
-                      <Select.Option value="csv">CSV - Comma-Separated Values</Select.Option>
-                      <Select.Option value="json">JSON - JavaScript Object Notation</Select.Option>
-                      <Select.Option value="xlsx">XLSX - Excel Workbook</Select.Option>
-                      <Select.Option value="xml">XML - Extensible Markup Language</Select.Option>
-                      <Select.Option value="yaml">YAML - YAML Ain't Markup Language</Select.Option>
-                    </Select>
-                    <FormControl.HelpText>
-                      Selected format: {getFormatName(format)}
-                    </FormControl.HelpText>
-                  </FormControl>
+                      {locale.name} ({locale.code})
+                    </Checkbox>
+                  ))}
+                </Checkbox.Group>
+              </FormControl>
+
+              <FormControl style={{ width: '100%', maxWidth: '360px' }}>
+                <Flex alignItems="center" gap="spacingXs">
+                  <FormControl.Label>Export format</FormControl.Label>
+                  <Tooltip content="Choose the file format for your export. CSV for spreadsheets, JSON for APIs, XLSX for Excel, XML for enterprise systems, YAML for configs" placement="right">
+                    <IconButton
+                      variant="transparent"
+                      icon={<InfoCircleIcon />}
+                      aria-label="Help"
+                      size="small"
+                      style={{ padding: 0, minHeight: 'auto' }}
+                    />
+                  </Tooltip>
+                </Flex>
+                <Select
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as ExportFormat)}
+                  isDisabled={isExporting}
+                >
+                  <Select.Option value="csv">CSV - Comma-Separated Values</Select.Option>
+                  <Select.Option value="json">JSON - JavaScript Object Notation</Select.Option>
+                  <Select.Option value="xlsx">XLSX - Excel Workbook</Select.Option>
+                  <Select.Option value="xml">XML - Extensible Markup Language</Select.Option>
+                  <Select.Option value="yaml">YAML - YAML Ain't Markup Language</Select.Option>
+                </Select>
+                <FormControl.HelpText>
+                  Selected format: {getFormatName(format)}
+                </FormControl.HelpText>
+              </FormControl>
 
                   {selectedContentType && (
-                    <FormControl>
+                    <FormControl style={{ width: '100%' }}>
                       <Flex alignItems="center" gap="spacingXs">
-                        <FormControl.Label>Fields to Export</FormControl.Label>
+                        <FormControl.Label>Fields to export</FormControl.Label>
                         <Tooltip content="Pick a preset or hand-pick fields. Your selections are saved per content type in this browser, so each user keeps their own preferences" placement="right">
                           <IconButton
                             variant="transparent"
@@ -1009,99 +1010,119 @@ export function ExportForm({
 
                       {selectedFields.length > 0 && (
                         <Box marginBottom="spacingS">
-                          <Flex alignItems="center" gap="spacingXs" marginBottom="spacingXs">
-                            <Subheading
-                              marginBottom="none"
-                              style={{
-                                fontSize: '12px',
-                                textTransform: 'uppercase',
-                                color: 'var(--gray-700)',
-                              }}
-                            >
-                              Column Order
-                            </Subheading>
-                            <Tooltip
-                              content="Drag-style reorder using the arrows. Columns appear in this exact order in your export"
-                              placement="right"
-                            >
-                              <IconButton
-                                variant="transparent"
-                                icon={<InfoCircleIcon />}
-                                aria-label="Help"
-                                size="small"
-                                style={{ padding: 0, minHeight: 'auto' }}
-                              />
-                            </Tooltip>
-                          </Flex>
                           <Box
                             style={{
-                              border: '1px solid var(--gray-200)',
+                              border: '1px solid var(--gray-300)',
                               borderRadius: '4px',
-                              padding: 'var(--spacing-xs)',
-                              backgroundColor: 'var(--gray-100)',
-                              maxHeight: '200px',
-                              overflowY: 'auto',
+                              backgroundColor: 'var(--white)',
+                              overflow: 'hidden',
                             }}
                           >
-                            <Stack flexDirection="column" spacing="spacingXs" alignItems="stretch">
-                              {selectedFields.map((fieldId, index) => {
-                                const field = fieldsById[fieldId];
-                                if (!field) return null;
-                                return (
-                                  <Flex
-                                    key={fieldId}
-                                    alignItems="center"
-                                    gap="spacingXs"
-                                    style={{
-                                      backgroundColor: 'var(--white)',
-                                      padding: '4px 8px',
-                                      borderRadius: '4px',
-                                      border: '1px solid var(--gray-200)',
-                                    }}
-                                  >
-                                    <Box style={{ minWidth: '24px', color: 'var(--gray-600)', fontSize: '12px' }}>
-                                      {index + 1}.
-                                    </Box>
-                                    <Box style={{ flexGrow: 1, minWidth: 0 }}>
-                                      <span style={{ fontSize: '14px' }}>{field.name}</span>
-                                      <span style={{ color: 'var(--gray-600)', fontSize: '12px', marginLeft: '6px' }}>
-                                        ({field.id})
-                                      </span>
-                                    </Box>
-                                    <Tooltip content="Move up" placement="top">
-                                      <IconButton
-                                        variant="transparent"
-                                        icon={<ArrowUpIcon />}
-                                        aria-label={`Move ${field.name} up`}
-                                        size="small"
-                                        onClick={() => moveField(index, -1)}
-                                        isDisabled={isExporting || index === 0}
-                                      />
-                                    </Tooltip>
-                                    <Tooltip content="Move down" placement="top">
-                                      <IconButton
-                                        variant="transparent"
-                                        icon={<ArrowDownIcon />}
-                                        aria-label={`Move ${field.name} down`}
-                                        size="small"
-                                        onClick={() => moveField(index, 1)}
-                                        isDisabled={isExporting || index === selectedFields.length - 1}
-                                      />
-                                    </Tooltip>
-                                    <Tooltip content="Remove from export" placement="top">
-                                      <IconButton
-                                        variant="transparent"
-                                        icon={<CloseIcon />}
-                                        aria-label={`Remove ${field.name}`}
-                                        size="small"
-                                        onClick={() => removeField(fieldId)}
-                                        isDisabled={isExporting}
-                                      />
-                                    </Tooltip>
-                                  </Flex>
-                                );
-                              })}
-                            </Stack>
+                            <Flex
+                              alignItems="center"
+                              justifyContent="space-between"
+                              gap="spacingXs"
+                              padding="spacingS"
+                              style={{
+                                borderBottom: '1px solid var(--gray-200)',
+                                backgroundColor: 'var(--gray-100)',
+                              }}
+                            >
+                              <Flex alignItems="center" gap="spacingXs">
+                                <Subheading
+                                  marginBottom="none"
+                                  style={{
+                                    fontSize: '12px',
+                                    textTransform: 'uppercase',
+                                    color: 'var(--gray-700)',
+                                  }}
+                                >
+                                  Column order
+                                </Subheading>
+                                <Tooltip
+                                  content="Use the arrow buttons to set the exact column order in the exported file"
+                                  placement="right"
+                                >
+                                  <IconButton
+                                    variant="transparent"
+                                    icon={<InfoCircleIcon />}
+                                    aria-label="Help"
+                                    size="small"
+                                    style={{ padding: 0, minHeight: 'auto' }}
+                                  />
+                                </Tooltip>
+                              </Flex>
+                              <Text fontColor="gray600" fontSize="fontSizeS">
+                                {selectedFields.length} columns
+                              </Text>
+                            </Flex>
+                            <Box
+                              style={{
+                                maxHeight: '232px',
+                                overflowY: 'auto',
+                                padding: 'var(--spacing-xs)',
+                              }}
+                            >
+                              <Stack flexDirection="column" spacing="spacingXs" alignItems="stretch">
+                                {selectedFields.map((fieldId, index) => {
+                                  const field = fieldsById[fieldId];
+                                  if (!field) return null;
+                                  return (
+                                    <Flex
+                                      key={fieldId}
+                                      alignItems="center"
+                                      gap="spacingXs"
+                                      style={{
+                                        backgroundColor: 'var(--white)',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        border: '1px solid var(--gray-200)',
+                                      }}
+                                    >
+                                      <Box style={{ minWidth: '24px', color: 'var(--gray-600)', fontSize: '12px' }}>
+                                        {index + 1}.
+                                      </Box>
+                                      <Box style={{ flexGrow: 1, minWidth: 0 }}>
+                                        <span style={{ fontSize: '14px' }}>{field.name}</span>
+                                        <span style={{ color: 'var(--gray-600)', fontSize: '12px', marginLeft: '6px' }}>
+                                          ({field.id})
+                                        </span>
+                                      </Box>
+                                      <Tooltip content="Move up" placement="top">
+                                        <IconButton
+                                          variant="transparent"
+                                          icon={<ArrowUpIcon />}
+                                          aria-label={`Move ${field.name} up`}
+                                          size="small"
+                                          onClick={() => moveField(index, -1)}
+                                          isDisabled={isExporting || index === 0}
+                                        />
+                                      </Tooltip>
+                                      <Tooltip content="Move down" placement="top">
+                                        <IconButton
+                                          variant="transparent"
+                                          icon={<ArrowDownIcon />}
+                                          aria-label={`Move ${field.name} down`}
+                                          size="small"
+                                          onClick={() => moveField(index, 1)}
+                                          isDisabled={isExporting || index === selectedFields.length - 1}
+                                        />
+                                      </Tooltip>
+                                      <Tooltip content="Remove from export" placement="top">
+                                        <IconButton
+                                          variant="transparent"
+                                          icon={<CloseIcon />}
+                                          aria-label={`Remove ${field.name}`}
+                                          size="small"
+                                          onClick={() => removeField(fieldId)}
+                                          isDisabled={isExporting}
+                                        />
+                                      </Tooltip>
+                                    </Flex>
+                                  );
+                                })}
+                              </Stack>
+                            </Box>
                           </Box>
                         </Box>
                       )}
@@ -1180,9 +1201,9 @@ export function ExportForm({
                     </FormControl>
                   )}
 
-                  <FormControl>
+                  <FormControl style={{ width: '100%', maxWidth: '520px' }}>
                     <Flex alignItems="center" gap="spacingXs">
-                      <FormControl.Label>Export Filename</FormControl.Label>
+                      <FormControl.Label>Export filename</FormControl.Label>
                       <Tooltip content="Customize the filename for your CSV download. The .csv extension is added automatically" placement="right">
                         <IconButton
                           variant="transparent"
@@ -1207,9 +1228,7 @@ export function ExportForm({
                       Final filename: {filenameWithExtension}
                     </FormControl.HelpText>
                   </FormControl>
-                </Stack>
-              </Box>
-            </Flex>
+            </Stack>
           </Box>
         </Tabs.Panel>
       </Tabs>
