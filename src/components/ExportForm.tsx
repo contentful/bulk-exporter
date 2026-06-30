@@ -86,6 +86,13 @@ export interface ExportFormProps {
   spaceId: string;
 }
 
+const STATUS_VARIANT_MAP: Record<string, 'primary' | 'positive' | 'warning' | 'negative'> = {
+  changed: 'primary',
+  published: 'positive',
+  draft: 'warning',
+  archived: 'negative',
+};
+
 export function ExportForm({
   contentTypes,
   availableLocales,
@@ -273,12 +280,13 @@ export function ExportForm({
   }, [customFilename, defaultFilename, format]);
 
   const activeFilters = useMemo(() => {
-    const filters: Array<{ label: string; onRemove: () => void }> = [];
-    
+    const filters: Array<{ label: string; onRemove: () => void; variant?: 'primary' | 'positive' | 'warning' | 'negative' }> = [];
+
     if (status !== 'any') {
       filters.push({
         label: `Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`,
         onRemove: () => setStatus('any'),
+        variant: STATUS_VARIANT_MAP[status],
       });
     }
     
@@ -493,7 +501,7 @@ export function ExportForm({
                   {activeFilters.map((filter, index) => (
                     <Tooltip key={index} content="Click to remove this filter" placement="top">
                       <Badge
-                        variant="primary"
+                        variant={filter.variant ?? 'primary'}
                         style={{ cursor: 'pointer' }}
                         onClick={filter.onRemove}
                       >

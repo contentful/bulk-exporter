@@ -20,6 +20,8 @@ export interface ExportOptions {
    * results preview so the downloaded file matches what they see.
    */
   sortByColumn?: { column: string; direction: 'asc' | 'desc' };
+  /** Client-side status post-filter for statuses the CMA can't distinguish server-side. */
+  statusPostFilter?: (entry: Entry) => boolean;
 }
 
 function sortRowsByColumn<T extends Record<string, string | number | boolean | null>>(
@@ -139,11 +141,15 @@ export class Exporter {
           return;
         }
 
+        const filteredBatch = options.statusPostFilter
+          ? (batch as Entry[]).filter(options.statusPostFilter)
+          : (batch as Entry[]);
+
         // Flatten entries using schema-aware path for all entries
         let rows: Array<Record<string, string | number | boolean | null>>;
         if (options.contentType) {
           // Single content type export - use the standard path
-          rows = flattenEntries(batch as Entry[], {
+          rows = flattenEntries(filteredBatch, {
             contentType: options.contentType,
             locales: options.locales,
             fields: options.fields,
@@ -151,7 +157,7 @@ export class Exporter {
           });
         } else if (options.contentTypeMap) {
           // Mixed content type export - look up each entry's content type
-          rows = (batch as Entry[]).map((entry) => {
+          rows = filteredBatch.map((entry) => {
             const contentTypeId = entry.sys.contentType.sys.id;
             const contentType = options.contentTypeMap![contentTypeId];
             
@@ -189,7 +195,7 @@ export class Exporter {
           });
         } else {
           // No content type map provided - shouldn't happen, but fallback
-          rows = (batch as Entry[]).map((entry) => {
+          rows = filteredBatch.map((entry) => {
             const updatedByUserId = entry.sys.updatedBy?.sys.id;
             const updatedByName = updatedByUserId ? (options.userMap?.[updatedByUserId] || updatedByUserId) : 'Unknown';
             

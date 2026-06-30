@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Table, Card, Stack, Text, Badge, Button, Spinner, Checkbox, Tooltip, Flex } from '@contentful/f36-components';
+import { Table, Card, Stack, Text, Badge, Button, Spinner, Checkbox, Tooltip, Flex, TextLink } from '@contentful/f36-components';
 import { ExternalLinkIcon, ArrowUpIcon, ArrowDownIcon } from '@contentful/f36-icons';
+import type { ContentType } from '../lib/flatten';
 
 type SortColumn = 'name' | 'contentType' | 'updated' | 'updatedBy' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -77,6 +78,7 @@ interface SearchResult {
     createdAt: string;
     updatedAt: string;
     publishedAt?: string;
+    archivedAt?: string;
     publishedVersion?: number;
     version?: number;
     createdBy?: {
@@ -123,18 +125,183 @@ export interface ResultsListProps {
   spaceId?: string;
   environmentId?: string;
   isExporting?: boolean;
-  /**
-   * Notify the parent when the user changes the column sort, so the next
-   * Export can match the visible order.
-   */
   onSortChange?: (sort: { column: SortColumn; direction: SortDirection } | null) => void;
+  /** Full content type schema — enables dynamic field columns in the preview */
+  contentTypeSchema?: ContentType | null;
+  /** Ordered field IDs selected in the Output tab */
+  selectedFields?: string[];
+  /** Locales selected in the Output tab — one preview column per field×locale */
+  locales?: string[];
 }
 
-export function ResultsList({ 
-  results, 
-  loading, 
-  onLoadMore, 
-  hasMore, 
+// ─── Styling (mirrors Bulk Edit) ────────────────────────────────────────────
+
+// Fixed column widths — tableLayout: fixed makes these exact, so sticky left
+// values are reliable pixel offsets
+const COL_CHECKBOX = 48;
+const COL_NAME = 260;
+const COL_STATUS = 120;
+const COL_FIELD = 180;
+
+const LEFT_CHECKBOX = 0;
+const LEFT_NAME = COL_CHECKBOX;
+const LEFT_STATUS = COL_CHECKBOX + COL_NAME;
+
+const stickyBase = {
+  position: 'sticky' as const,
+  zIndex: 1,
+};
+
+// Header sticky cells get zIndex 2 so they sit above body sticky cells
+const stickyHeaderCell = (left: number, extraStyle: Record<string, unknown> = {}) => ({
+  ...stickyBase,
+  left,
+  zIndex: 2,
+  background: '#F7F9FA',
+  boxShadow: 'inset 0 0 0 9999px #F7F9FA',
+  ...extraStyle,
+});
+
+const stickyBodyCell = (left: number, extraStyle: Record<string, unknown> = {}) => ({
+  ...stickyBase,
+  left,
+  background: '#fff',
+  // box-shadow inset trick: fills cell with opaque color regardless of
+  // Forma 36 row hover/stripe styles that would otherwise bleed through
+  boxShadow: 'inset 0 0 0 9999px #fff',
+  ...extraStyle,
+});
+
+const fieldHeaderCellStyle = {
+  background: '#F7F9FA',
+  borderRight: '1px solid #E7EBEE',
+  minWidth: COL_FIELD,
+  verticalAlign: 'top' as const,
+  padding: '8px 12px',
+};
+
+const fieldBodyCellStyle = {
+  borderRight: '1px solid #E7EBEE',
+  minWidth: COL_FIELD,
+  verticalAlign: 'middle' as const,
+};
+
+const fixedHeaderCellStyle = {
+  background: '#F7F9FA',
+};
+
+// ─── Field type label (mirrors Bulk Edit's getFieldTypeLabel) ────────────────
+
+type SchemaField = ContentType['fields'][number];
+
+function getFieldTypeLabel(field: SchemaField): string {
+  if (field.type === 'Link') {
+    return field.linkType === 'Asset' ? 'Asset' : 'Reference';
+  }
+  if (field.type === 'Array') {
+    if (field.items?.linkType === 'Entry') return 'Multi-reference';
+    if (field.items?.linkType === 'Asset') return 'Multi-asset';
+    return 'List';
+  }
+  const labels: Record<string, string> = {
+    Symbol: 'Short text',
+    Text: 'Long text',
+    Integer: 'Integer',
+    Number: 'Number',
+    Date: 'Date',
+    Boolean: 'Boolean',
+    Object: 'JSON',
+    RichText: 'Rich text',
+    Location: 'Location',
+  };
+  return labels[field.type] ?? field.type;
+}
+
+// ─── Field value formatter (mirrors Bulk Edit's getFieldDisplayValue) ────────
+
+const TRUNCATE_AT = 40;
+
+function truncate(str: string): string {
+  return str.length > TRUNCATE_AT ? str.slice(0, TRUNCATE_AT) + '…' : str;
+}
+
+function formatFieldValue(
+  field: SchemaField,
+  rawValue: unknown
+): string {
+  if (rawValue === null || rawValue === undefined) return '—';
+
+  switch (field.type) {
+    case 'Symbol':
+    case 'Text':
+      return truncate(String(rawValue));
+
+    case 'Integer':
+    case 'Number':
+      return String(rawValue);
+
+    case 'Date':
+      return String(rawValue).split('T')[0];
+
+    case 'Boolean':
+      return rawValue ? 'Yes' : 'No';
+
+    case 'Object':
+      return truncate(JSON.stringify(rawValue));
+
+    case 'Location': {
+      const loc = rawValue as { lat?: number; lon?: number };
+      return `Lat: ${loc.lat ?? '?'}, Lon: ${loc.lon ?? '?'}`;
+    }
+
+    case 'RichText':
+      return '[Rich text]';
+
+    case 'Link': {
+      const link = rawValue as { sys?: { id: string; linkType?: string } };
+      if (link?.sys?.linkType === 'Asset') return '1 asset';
+      if (link?.sys?.linkType === 'Entry') return '1 reference';
+      return '—';
+    }
+
+    case 'Array': {
+      if (!Array.isArray(rawValue) || rawValue.length === 0) return '—';
+      const first = rawValue[0] as { sys?: { linkType?: string } };
+      if (first?.sys?.linkType === 'Entry') {
+        return `${rawValue.length} ${rawValue.length === 1 ? 'reference' : 'references'}`;
+      }
+      if (first?.sys?.linkType === 'Asset') {
+        return `${rawValue.length} ${rawValue.length === 1 ? 'asset' : 'assets'}`;
+      }
+      return truncate((rawValue as unknown[]).map(String).join(', '));
+    }
+
+    default:
+      return truncate(String(rawValue));
+  }
+}
+
+// ─── Status badge ────────────────────────────────────────────────────────────
+
+const STATUS_VARIANT: Record<string, 'primary' | 'positive' | 'warning' | 'negative'> = {
+  changed: 'primary',
+  published: 'positive',
+  draft: 'warning',
+  archived: 'negative',
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const variant = STATUS_VARIANT[status] ?? 'secondary';
+  return <Badge variant={variant as 'primary' | 'positive' | 'warning' | 'negative' | 'secondary'}>{status}</Badge>;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function ResultsList({
+  results,
+  loading,
+  onLoadMore,
+  hasMore,
   totalCount,
   selectedIds = [],
   onSelectionChange,
@@ -145,13 +312,39 @@ export function ResultsList({
   environmentId = 'master',
   isExporting = false,
   onSortChange,
+  contentTypeSchema,
+  selectedFields,
+  locales = [],
 }: ResultsListProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  // NOTE: All hooks must run on every render. The early returns below mean any
-  // hook called after them would violate the rules of hooks (React error #310).
-  // That's why this useMemo lives here, before any conditional return.
+  // Build ordered field schema columns when a content type schema is available
+  const fieldColumns = useMemo<SchemaField[]>(() => {
+    if (!contentTypeSchema) return [];
+    const fieldMap = new Map(contentTypeSchema.fields.map((f) => [f.id, f]));
+    const orderedIds =
+      selectedFields && selectedFields.length > 0
+        ? selectedFields
+        : contentTypeSchema.fields.map((f) => f.id);
+    // Exclude any field whose ID is 'status' — publication status is already
+    // shown as a dedicated sticky column, so including it again is redundant.
+    return orderedIds
+      .map((id) => fieldMap.get(id))
+      .filter((f): f is SchemaField => f !== undefined && f.id !== 'status');
+  }, [contentTypeSchema, selectedFields]);
+
+  // Expand to one column per field × locale combination
+  const displayColumns = useMemo(() => {
+    if (fieldColumns.length === 0) return [];
+    const activeLocales = locales.length > 0 ? locales : [''];
+    return fieldColumns.flatMap((field) =>
+      activeLocales.map((locale) => ({ field, locale }))
+    );
+  }, [fieldColumns, locales]);
+
+  const hasFieldColumns = displayColumns.length > 0;
+
   const sortedResults = useMemo(() => {
     if (!sortColumn) return results;
 
@@ -184,6 +377,7 @@ export function ResultsList({
     };
 
     const statusOf = (entry: SearchResult): string => {
+      if (entry.sys.archivedAt) return 'archived';
       const hasPublished = entry.sys.publishedVersion !== undefined;
       const isChanged =
         hasPublished &&
@@ -197,16 +391,11 @@ export function ResultsList({
 
     const accessor = (entry: SearchResult): string => {
       switch (sortColumn) {
-        case 'name':
-          return titleOf(entry).toLowerCase();
-        case 'contentType':
-          return contentTypeOf(entry).toLowerCase();
-        case 'updated':
-          return entry.sys.updatedAt;
-        case 'updatedBy':
-          return updatedByOf(entry).toLowerCase();
-        case 'status':
-          return statusOf(entry);
+        case 'name': return titleOf(entry).toLowerCase();
+        case 'contentType': return contentTypeOf(entry).toLowerCase();
+        case 'updated': return entry.sys.updatedAt;
+        case 'updatedBy': return updatedByOf(entry).toLowerCase();
+        case 'status': return statusOf(entry);
       }
     };
 
@@ -215,9 +404,6 @@ export function ResultsList({
       const bv = accessor(b);
       if (av < bv) return -1;
       if (av > bv) return 1;
-      // Tie-breaker: when primary values match (eg. all rows are the same
-      // content type), fall back to most-recently-updated first, then by id
-      // so the sort is deterministic and visibly reorders uniform data.
       if (a.sys.updatedAt !== b.sys.updatedAt) {
         return a.sys.updatedAt < b.sys.updatedAt ? 1 : -1;
       }
@@ -262,18 +448,15 @@ export function ResultsList({
     return null;
   }
 
-  const allCurrentIds = results.map(r => r.sys.id);
-  const allSelected = allCurrentIds.length > 0 && allCurrentIds.every(id => selectedIds.includes(id));
+  const allCurrentIds = results.map((r) => r.sys.id);
+  const allSelected = allCurrentIds.length > 0 && allCurrentIds.every((id) => selectedIds.includes(id));
   const someSelected = selectedIds.length > 0 && !allSelected;
 
   const handleSelectAll = () => {
     if (!onSelectionChange) return;
-    
     if (allSelected) {
-      // Deselect all current page
-      onSelectionChange(selectedIds.filter(id => !allCurrentIds.includes(id)));
+      onSelectionChange(selectedIds.filter((id) => !allCurrentIds.includes(id)));
     } else {
-      // Select all current page
       const newSelection = [...new Set([...selectedIds, ...allCurrentIds])];
       onSelectionChange(newSelection);
     }
@@ -281,9 +464,8 @@ export function ResultsList({
 
   const handleSelectOne = (id: string) => {
     if (!onSelectionChange) return;
-    
     if (selectedIds.includes(id)) {
-      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
+      onSelectionChange(selectedIds.filter((selectedId) => selectedId !== id));
     } else {
       onSelectionChange([...selectedIds, id]);
     }
@@ -291,54 +473,47 @@ export function ResultsList({
 
   const getTitle = (entry: SearchResult): string => {
     if (!entry.fields) return entry.sys.id;
-    
-    // Get the display field from content type map
     const contentTypeId = entry.sys.contentType.sys.id;
     const displayField = contentTypeMap[contentTypeId]?.displayField;
-    
-    // Try display field first if available
     if (displayField && entry.fields[displayField]) {
-      const localeValues = entry.fields[displayField];
-      const firstValue = Object.values(localeValues)[0];
-      if (firstValue && typeof firstValue === 'string') {
-        return firstValue;
-      }
+      const firstValue = Object.values(entry.fields[displayField])[0];
+      if (firstValue && typeof firstValue === 'string') return firstValue;
     }
-    
-    // Try common title fields
     const titleFields = ['title', 'name', 'displayName', 'label', 'heading', 'internalName'];
     for (const field of titleFields) {
       if (entry.fields[field]) {
-        const localeValues = entry.fields[field];
-        const firstValue = Object.values(localeValues)[0];
-        if (firstValue && typeof firstValue === 'string') {
-          return firstValue;
-        }
+        const firstValue = Object.values(entry.fields[field])[0];
+        if (firstValue && typeof firstValue === 'string') return firstValue;
       }
     }
-    
-    // Fallback to entry ID
     return entry.sys.id;
+  };
+
+  const getStatus = (entry: SearchResult): string => {
+    if (entry.sys.archivedAt) return 'archived';
+    const hasPublished = entry.sys.publishedVersion !== undefined;
+    const isChanged =
+      hasPublished &&
+      entry.sys.version !== undefined &&
+      entry.sys.publishedVersion !== undefined &&
+      entry.sys.version > entry.sys.publishedVersion + 1;
+    if (!hasPublished) return 'draft';
+    if (isChanged) return 'changed';
+    return 'published';
+  };
+
+  const getFieldValue = (entry: SearchResult, field: SchemaField, locale: string): string => {
+    if (!entry.fields?.[field.id]) return '—';
+    const localeMap = entry.fields[field.id];
+    const value = locale
+      ? (localeMap[locale] ?? Object.values(localeMap)[0])
+      : Object.values(localeMap)[0];
+    return formatFieldValue(field, value);
   };
 
   const getContentTypeName = (entry: SearchResult): string => {
     const contentTypeId = entry.sys.contentType.sys.id;
     return contentTypeMap[contentTypeId]?.name || contentTypeId;
-  };
-
-  const getStatus = (entry: SearchResult): string => {
-    const hasPublished = entry.sys.publishedVersion !== undefined;
-    const isChanged = hasPublished && entry.sys.version !== undefined && 
-                      entry.sys.publishedVersion !== undefined &&
-                      entry.sys.version > entry.sys.publishedVersion + 1;
-    
-    if (!hasPublished) {
-      return 'draft';
-    }
-    if (isChanged) {
-      return 'changed';
-    }
-    return 'published';
   };
 
   const getLastUpdatedBy = (entry: SearchResult): string => {
@@ -348,14 +523,13 @@ export function ResultsList({
     return 'Unknown';
   };
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
-  };
+  const formatDate = (dateString: string): string =>
+    new Date(dateString).toISOString().split('T')[0];
 
   return (
-    <Card data-results-list>
+    <Card data-results-list style={{ overflow: 'hidden' }}>
       <Stack flexDirection="column" spacing="spacingS">
+        {/* Header bar */}
         <Stack justifyContent="space-between" alignItems="center" padding="spacingM">
           <Stack spacing="spacingM" alignItems="center">
             <Text fontWeight="fontWeightDemiBold">
@@ -377,8 +551,8 @@ export function ResultsList({
                 {(() => {
                   const contentTypeIds = new Set(
                     results
-                      .filter(r => selectedIds.includes(r.sys.id))
-                      .map(r => r.sys.contentType.sys.id)
+                      .filter((r) => selectedIds.includes(r.sys.id))
+                      .map((r) => r.sys.contentType.sys.id)
                   );
                   if (contentTypeIds.size > 1) {
                     return (
@@ -411,115 +585,193 @@ export function ResultsList({
           </Stack>
         </Stack>
 
-        <Table>
-          <Table.Head>
-            <Table.Row>
-              <Table.Cell>
-                {onSelectionChange && (
-                  <Checkbox
-                    isChecked={allSelected}
-                    isIndeterminate={someSelected}
-                    onChange={handleSelectAll}
-                    aria-label="Select all entries on this page"
+        {/* Table — horizontal scroll when field columns overflow.
+            tableLayout: fixed lets us set exact column widths so sticky
+            left offsets are reliable pixel values. */}
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <Table style={{ borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+              <col style={{ width: COL_CHECKBOX }} />
+              <col style={{ width: COL_NAME }} />
+              <col style={{ width: COL_STATUS }} />
+              {hasFieldColumns
+                ? displayColumns.map(({ field, locale }) => <col key={`${field.id}-${locale}`} style={{ width: COL_FIELD }} />)
+                : <>
+                    <col style={{ width: COL_FIELD }} />
+                    <col style={{ width: COL_FIELD }} />
+                    <col style={{ width: COL_FIELD }} />
+                  </>
+              }
+              <col style={{ width: 80 }} />
+            </colgroup>
+            <Table.Head>
+              <Table.Row>
+                {/* Checkbox — sticky */}
+                <Table.Cell as="th" style={{ ...stickyHeaderCell(LEFT_CHECKBOX), borderRight: '1px solid #E7EBEE' }}>
+                  {onSelectionChange && (
+                    <Checkbox
+                      isChecked={allSelected}
+                      isIndeterminate={someSelected}
+                      onChange={handleSelectAll}
+                      aria-label="Select all entries on this page"
+                    />
+                  )}
+                </Table.Cell>
+
+                {/* Name — sticky */}
+                <Table.Cell as="th" style={{ ...stickyHeaderCell(LEFT_NAME), minWidth: COL_NAME, borderRight: '1px solid #E7EBEE' }}>
+                  <SortableHeader
+                    column="name"
+                    label="Display name"
+                    activeColumn={sortColumn}
+                    direction={sortDirection}
+                    onSort={handleSortClick}
                   />
-                )}
-              </Table.Cell>
-              <Table.Cell>
-                <SortableHeader
-                  column="name"
-                  label="Name"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onSort={handleSortClick}
-                />
-              </Table.Cell>
-              <Table.Cell>
-                <SortableHeader
-                  column="contentType"
-                  label="Content Type"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onSort={handleSortClick}
-                />
-              </Table.Cell>
-              <Table.Cell>
-                <SortableHeader
-                  column="updated"
-                  label="Updated"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onSort={handleSortClick}
-                />
-              </Table.Cell>
-              <Table.Cell>
-                <SortableHeader
-                  column="updatedBy"
-                  label="Last updated by"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onSort={handleSortClick}
-                />
-              </Table.Cell>
-              <Table.Cell>
-                <SortableHeader
-                  column="status"
-                  label="Status"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onSort={handleSortClick}
-                />
-              </Table.Cell>
-              <Table.Cell></Table.Cell>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {sortedResults.map((entry) => {
-              const status = getStatus(entry);
-              return (
-                <Table.Row key={entry.sys.id}>
-                  <Table.Cell>
-                    {onSelectionChange && (
-                      <Checkbox
-                        isChecked={selectedIds.includes(entry.sys.id)}
-                        onChange={() => handleSelectOne(entry.sys.id)}
-                        aria-label={`Select ${getTitle(entry)}`}
+                </Table.Cell>
+
+                {/* Status — sticky, with shadow on right edge to separate sticky from scrolling */}
+                <Table.Cell as="th" style={{ ...stickyHeaderCell(LEFT_STATUS), minWidth: COL_STATUS, borderRight: '2px solid #CFD9E0', padding: '8px 12px' }}>
+                  <Text fontWeight="fontWeightMedium" fontSize="fontSizeS" fontColor="gray900">
+                    Status
+                  </Text>
+                </Table.Cell>
+
+                {hasFieldColumns ? (
+                  /* Dynamic field columns — one per field × locale */
+                  displayColumns.map(({ field, locale }) => (
+                    <Table.Cell as="th" key={`${field.id}-${locale}`} style={fieldHeaderCellStyle}>
+                      <Flex flexDirection="column" gap="spacing2Xs">
+                        <Text fontWeight="fontWeightMedium" fontSize="fontSizeS" fontColor="gray900">
+                          {locales.length > 1 ? `(${locale}) ${field.name}` : field.name}
+                        </Text>
+                        <Text fontSize="fontSizeS" fontColor="gray600" style={{ fontSize: '11px' }}>
+                          {getFieldTypeLabel(field)}
+                        </Text>
+                      </Flex>
+                    </Table.Cell>
+                  ))
+                ) : (
+                  /* Default metadata columns when no content type selected */
+                  <>
+                    <Table.Cell as="th" style={fixedHeaderCellStyle}>
+                      <SortableHeader
+                        column="contentType"
+                        label="Content Type"
+                        activeColumn={sortColumn}
+                        direction={sortDirection}
+                        onSort={handleSortClick}
                       />
-                    )}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text fontWeight="fontWeightMedium">{getTitle(entry)}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text>{getContentTypeName(entry)}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text fontSize="fontSizeS">{formatDate(entry.sys.updatedAt)}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text fontSize="fontSizeS">{getLastUpdatedBy(entry)}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text fontSize="fontSizeS">{status}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Tooltip content="Open entry in Contentful" placement="top">
-                      <Button
-                        size="small"
-                        variant="transparent"
-                        endIcon={<ExternalLinkIcon />}
-                        as="a"
-                        href={`https://app.contentful.com/spaces/${spaceId}/environments/${environmentId}/entries/${entry.sys.id}`}
+                    </Table.Cell>
+                    <Table.Cell as="th" style={fixedHeaderCellStyle}>
+                      <SortableHeader
+                        column="updated"
+                        label="Updated"
+                        activeColumn={sortColumn}
+                        direction={sortDirection}
+                        onSort={handleSortClick}
+                      />
+                    </Table.Cell>
+                    <Table.Cell as="th" style={fixedHeaderCellStyle}>
+                      <SortableHeader
+                        column="updatedBy"
+                        label="Last updated by"
+                        activeColumn={sortColumn}
+                        direction={sortDirection}
+                        onSort={handleSortClick}
+                      />
+                    </Table.Cell>
+                  </>
+                )}
+
+                {/* View — always last */}
+                <Table.Cell as="th" style={{ ...fixedHeaderCellStyle, width: 80 }} />
+              </Table.Row>
+            </Table.Head>
+
+            <Table.Body>
+              {sortedResults.map((entry) => {
+                const status = getStatus(entry);
+                const entryUrl = `https://app.contentful.com/spaces/${spaceId}/environments/${environmentId}/entries/${entry.sys.id}`;
+                return (
+                  <Table.Row key={entry.sys.id}>
+                    {/* Checkbox — sticky */}
+                    <Table.Cell style={{ ...stickyBodyCell(LEFT_CHECKBOX), borderRight: '1px solid #E7EBEE' }}>
+                      {onSelectionChange && (
+                        <Checkbox
+                          isChecked={selectedIds.includes(entry.sys.id)}
+                          onChange={() => handleSelectOne(entry.sys.id)}
+                          aria-label={`Select ${getTitle(entry)}`}
+                        />
+                      )}
+                    </Table.Cell>
+
+                    {/* Display name — sticky, TextLink like Bulk Edit */}
+                    <Table.Cell style={{ ...stickyBodyCell(LEFT_NAME), minWidth: COL_NAME, borderRight: '1px solid #E7EBEE' }}>
+                      <TextLink
+                        href={entryUrl}
                         target="_blank"
+                        rel="noopener noreferrer"
+                        icon={<ExternalLinkIcon />}
+                        alignIcon="end"
+                        style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
-                        View
-                      </Button>
-                    </Tooltip>
-                  </Table.Cell>
-                </Table.Row>
-              );
-            })}
-          </Table.Body>
-        </Table>
+                        {getTitle(entry)}
+                      </TextLink>
+                    </Table.Cell>
+
+                    {/* Status badge — sticky */}
+                    <Table.Cell style={{ ...stickyBodyCell(LEFT_STATUS), minWidth: COL_STATUS, borderRight: '2px solid #CFD9E0' }}>
+                      <StatusBadge status={status} />
+                    </Table.Cell>
+
+                    {hasFieldColumns ? (
+                      /* Field value cells — one per field × locale */
+                      displayColumns.map(({ field, locale }) => (
+                        <Table.Cell key={`${field.id}-${locale}`} style={fieldBodyCellStyle}>
+                          <Text fontSize="fontSizeS" fontColor="gray700">
+                            {getFieldValue(entry, field, locale)}
+                          </Text>
+                        </Table.Cell>
+                      ))
+                    ) : (
+                      /* Default metadata cells */
+                      <>
+                        <Table.Cell>
+                          <Text fontSize="fontSizeS">{getContentTypeName(entry)}</Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text fontSize="fontSizeS">{formatDate(entry.sys.updatedAt)}</Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text fontSize="fontSizeS">{getLastUpdatedBy(entry)}</Text>
+                        </Table.Cell>
+                      </>
+                    )}
+
+                    {/* View — removed since name is now a link; keep for non-field-column mode */}
+                    {!hasFieldColumns && (
+                      <Table.Cell style={{ width: 80 }}>
+                        <Tooltip content="Open entry in Contentful" placement="top">
+                          <Button
+                            size="small"
+                            variant="transparent"
+                            endIcon={<ExternalLinkIcon />}
+                            as="a"
+                            href={entryUrl}
+                            target="_blank"
+                          >
+                            View
+                          </Button>
+                        </Tooltip>
+                      </Table.Cell>
+                    )}
+                    {hasFieldColumns && <Table.Cell style={{ width: 80 }} />}
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </Table>
+        </div>
 
         {hasMore && (
           <Stack justifyContent="center" padding="spacingM">

@@ -62,7 +62,7 @@ export function buildQuery(data: QueryFormData): Record<string, unknown> {
       case 'changed':
         query['sys.publishedAt[exists]'] = true;
         query['sys.archivedAt[exists]'] = false;
-        query['sys.publishedVersion[ne]'] = 'sys.version';
+        // Can't filter changed vs published server-side — post-filter applied client-side
         break;
       case 'archived':
         query['sys.archivedAt[exists]'] = true;
@@ -155,4 +155,35 @@ export function buildQuery(data: QueryFormData): Record<string, unknown> {
   }
 
   return query;
+}
+
+interface SysVersioned {
+  sys: {
+    version?: number;
+    publishedVersion?: number;
+    archivedAt?: string;
+  };
+}
+
+/**
+ * Returns a client-side predicate for statuses that the CMA cannot distinguish
+ * server-side (published vs changed). Returns null for statuses that are fully
+ * handled by the query params alone.
+ */
+export function getStatusPostFilter(
+  status: EntryStatus
+): ((entry: SysVersioned) => boolean) | null {
+  if (status === 'published') {
+    return (entry) => {
+      const { version, publishedVersion } = entry.sys;
+      return publishedVersion !== undefined && version === publishedVersion + 1;
+    };
+  }
+  if (status === 'changed') {
+    return (entry) => {
+      const { version, publishedVersion } = entry.sys;
+      return publishedVersion !== undefined && version !== undefined && version > publishedVersion + 1;
+    };
+  }
+  return null;
 }

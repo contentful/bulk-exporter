@@ -7,8 +7,8 @@ import { ProgressPanel } from '../components/ProgressPanel';
 import { ResultsList } from '../components/ResultsList';
 import { Exporter, type ExportProgress } from '../lib/exporter';
 import { getEntryCount } from '../lib/paginate';
-import { buildQuery } from '../lib/queryBuilder';
-import type { ContentType } from '../lib/flatten';
+import { buildQuery, getStatusPostFilter, type EntryStatus } from '../lib/queryBuilder';
+import type { ContentType, Entry } from '../lib/flatten';
 
 interface Locale {
   code: string;
@@ -55,6 +55,7 @@ const Page = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [lastSearchQuery, setLastSearchQuery] = useState<Record<string, unknown> | null>(null);
+  const [apiFetchOffset, setApiFetchOffset] = useState(0);
   const [lastFormData, setLastFormData] = useState<ExportFormData | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [contentTypeMap, setContentTypeMap] = useState<Record<string, { name: string; displayField?: string }>>({});
@@ -216,6 +217,7 @@ const Page = () => {
       setIsSearching(true);
       setSearchResults([]);
       setSelectedEntryIds([]);
+      setApiFetchOffset(0);
       setLastFormData(data); // Save form data for exports
       
       const query = buildQuery({
@@ -235,14 +237,22 @@ const Page = () => {
       });
 
       setLastSearchQuery(query);
-      
+
       // Fetch first 50 results
       const response = await sdk.cma.entry.getMany({
         query: { ...query, limit: 50 },
       });
 
-      setSearchResults(response.items as unknown as SearchResult[]);
-      setEstimatedCount(response.total);
+      const postFilter = getStatusPostFilter(data.status as EntryStatus);
+      const items = postFilter
+        ? (response.items as unknown as SearchResult[]).filter(postFilter as (e: SearchResult) => boolean)
+        : (response.items as unknown as SearchResult[]);
+
+      const apiFetched = response.items.length;
+      setSearchResults(items);
+      // If we got all API entries in one page, the true filtered total is items.length
+      setEstimatedCount(apiFetched >= response.total ? items.length : response.total);
+      setApiFetchOffset(apiFetched);
       
       // Smooth scroll to results
       setTimeout(() => {
@@ -331,10 +341,21 @@ const Page = () => {
       setIsSearching(true);
       
       const response = await sdk.cma.entry.getMany({
-        query: { ...lastSearchQuery, limit: 50, skip: searchResults.length },
+        query: { ...lastSearchQuery, limit: 50, skip: apiFetchOffset },
       });
 
-      setSearchResults([...searchResults, ...(response.items as unknown as SearchResult[])]);
+      const postFilter = getStatusPostFilter(lastFormData?.status as EntryStatus);
+      const newItems = postFilter
+        ? (response.items as unknown as SearchResult[]).filter(postFilter as (e: SearchResult) => boolean)
+        : (response.items as unknown as SearchResult[]);
+
+      const newApiFetchOffset = apiFetchOffset + response.items.length;
+      const allFetched = newApiFetchOffset >= (estimatedCount ?? 0);
+      setSearchResults([...searchResults, ...newItems]);
+      setApiFetchOffset(newApiFetchOffset);
+      if (allFetched) {
+        setEstimatedCount(searchResults.length + newItems.length);
+      }
     } catch (error) {
       sdk.notifier.error('Failed to load more results');
       console.error(error);
@@ -375,6 +396,8 @@ const Page = () => {
       const exporter = new Exporter(sdk.cma);
       exporterRef.current = exporter;
 
+      const exportStatusPostFilter = getStatusPostFilter(data.status as EntryStatus) ?? undefined;
+
       await exporter.start(
         {
           contentType: data.contentType,
@@ -390,6 +413,7 @@ const Page = () => {
               `${data.contentTypeId}-${new Date().toISOString().split('T')[0]}` :
               `contentful-export-${new Date().toISOString().split('T')[0]}`),
           sortByColumn: buildSortByColumn(data.contentTypeId),
+          statusPostFilter: exportStatusPostFilter as ((entry: Entry) => boolean) | undefined,
         },
         (newProgress) => {
           setProgress(newProgress);
@@ -473,7 +497,7 @@ const Page = () => {
           results={searchResults}
           loading={isSearching}
           onLoadMore={handleLoadMore}
-          hasMore={estimatedCount ? searchResults.length < estimatedCount : false}
+          hasMore={estimatedCount ? apiFetchOffset < estimatedCount : false}
           totalCount={estimatedCount ?? undefined}
           selectedIds={selectedEntryIds}
           onSelectionChange={setSelectedEntryIds}
@@ -484,6 +508,13 @@ const Page = () => {
           environmentId={sdk.ids.environment}
           isExporting={isExporting}
           onSortChange={setColumnSort}
+          contentTypeSchema={
+            lastFormData?.contentTypeId
+              ? contentTypeSchemaMap[lastFormData.contentTypeId] ?? null
+              : null
+          }
+          selectedFields={lastFormData?.fields}
+          locales={lastFormData?.locales ?? []}
         />
 
         <ProgressPanel progress={progress} onCancel={handleCancel} />

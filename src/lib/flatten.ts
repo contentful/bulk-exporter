@@ -3,7 +3,9 @@ export interface Entry {
     id: string;
     createdAt: string;
     updatedAt: string;
+    version?: number;
     publishedVersion?: number;
+    archivedAt?: string;
     contentType: {
       sys: {
         id: string;
