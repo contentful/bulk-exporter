@@ -38,7 +38,7 @@
     "@contentful/f36-components": "^4.76.0",
     "@contentful/f36-tokens": "^4.1.0",
     "@contentful/react-apps-toolkit": "^1.2.16",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.3.0",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
